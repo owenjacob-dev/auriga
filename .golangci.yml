@@ -1,0 +1,60 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - gosec
+    - misspell
+    - noctx
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    depguard:
+      rules:
+        charm-v2-paths:
+          desc: Use the charm.land v2 import paths (CLAUDE.md "Stack").
+          files: ["$all"]
+          deny:
+            - pkg: github.com/charmbracelet/bubbletea
+              desc: use charm.land/bubbletea/v2
+            - pkg: github.com/charmbracelet/bubbles
+              desc: use charm.land/bubbles/v2
+            - pkg: github.com/charmbracelet/lipgloss
+              desc: use charm.land/lipgloss/v2
+            - pkg: github.com/charmbracelet/huh
+              desc: use charm.land/huh/v2
+        pure-packages:
+          desc: Stellar logic stays pure and testable without a network (SPEC.md "Architecture").
+          files:
+            - "**/internal/strkey/**"
+            - "**/internal/stellarcfg/**"
+            - "**/internal/quorum/**"
+            - "**/internal/presets/**"
+          deny:
+            - pkg: github.com/owenjacob-dev/auriga/internal/sshx
+              desc: pure packages must not do SSH
+            - pkg: github.com/owenjacob-dev/auriga/internal/remote
+              desc: pure packages must not run remote helpers
+            - pkg: github.com/owenjacob-dev/auriga/internal/ui
+              desc: pure packages must not depend on the UI
+            - pkg: github.com/owenjacob-dev/auriga/internal/app
+              desc: pure packages must not depend on the UI
+            - pkg: golang.org/x/crypto/ssh
+              desc: pure packages must not do SSH
+            - pkg: net/http
+              desc: pure packages must not make network calls
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec]
+
+formatters:
+  enable:
+    - gofmt
