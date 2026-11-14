@@ -19,6 +19,7 @@ build:
 lint:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 	$(GO) vet ./...
+	$(GOLANGCI) config verify
 	$(GOLANGCI) run ./...
 
 test:

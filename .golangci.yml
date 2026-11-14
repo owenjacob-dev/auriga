@@ -18,8 +18,8 @@ linters:
         - fmt.Fprintln
     depguard:
       rules:
+        # Use the charm.land v2 import paths (CLAUDE.md "Stack").
         charm-v2-paths:
-          desc: Use the charm.land v2 import paths (CLAUDE.md "Stack").
           files: ["$all"]
           deny:
             - pkg: github.com/charmbracelet/bubbletea
@@ -30,8 +30,8 @@ linters:
               desc: use charm.land/lipgloss/v2
             - pkg: github.com/charmbracelet/huh
               desc: use charm.land/huh/v2
+        # Stellar logic stays pure and testable without a network (SPEC.md "Architecture").
         pure-packages:
-          desc: Stellar logic stays pure and testable without a network (SPEC.md "Architecture").
           files:
             - "**/internal/strkey/**"
             - "**/internal/stellarcfg/**"
