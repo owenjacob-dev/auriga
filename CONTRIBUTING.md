@@ -59,7 +59,7 @@ Keep commits small, with a clear message.
 ## Merging
 
 `main` is protected by a ruleset. Changes land through a pull request whose
-`Lint, test, secrets, vuln` check passes on a branch that is up to date with
+`Lint, test, secrets, vuln` and `DCO` checks pass on a branch that is up to date with
 `main`, with every review conversation resolved. Merge with **Rebase** or a
 **merge commit**; squash merging is turned off so that small commits survive.
 Release tags (`v*`) can only be created, moved or deleted by repository

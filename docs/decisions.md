@@ -41,7 +41,8 @@ The maintainer accepted the proposed defaults for all six questions.
 | Actions | GitHub-owned actions plus `golangci/golangci-lint-action` only; default token read-only; workflows from every outside contributor need approval | Supply-chain hardening (`SPEC.md` "Supply chain"). |
 | Security | Private vulnerability reporting, Dependabot alerts and security updates, secret scanning with push protection | `SECURITY.md` points to private reporting. |
 | Web commits | Sign-off required | Matches the DCO requirement. |
-| Not enforced | DCO sign-off on pushed commits; signed (GPG or SSH) commits | DCO needs the DCO GitHub App, which only a person can install. Signed commits are not used yet. |
+| DCO | The DCO GitHub App checks every pull request, and its `DCO` check is required on `main` | Enforces `git commit -s` on pushed commits as well as web commits. |
+| Not enforced | Signed (GPG or SSH) commits; actions pinned to commit SHAs | Not used yet; either can be turned on later. |
 
 ## Verifications
 
