@@ -1,7 +1,18 @@
 # Contributing to Auriga
 
-Thanks for helping. Read `SPEC.md` before changing behaviour: it is the source
-of truth, and a change that departs from it needs discussion first.
+Thanks for your interest in Auriga.
+
+## How to contribute
+
+**Open an issue.** Bug reports, feature ideas and questions are all welcome as
+GitHub issues. Pull requests can only be opened by repository collaborators,
+so please do not prepare a pull request unless a maintainer has invited you
+to. Report security problems privately as described in `SECURITY.md`, never in
+a public issue.
+
+The rest of this page is for collaborators. Read `SPEC.md` before changing
+behaviour: it is the source of truth, and a change that departs from it needs
+discussion first.
 
 ## Development setup
 
@@ -44,6 +55,15 @@ git commit -s
 ```
 
 Keep commits small, with a clear message.
+
+## Merging
+
+`main` is protected by a ruleset. Changes land through a pull request whose
+`Lint, test, secrets, vuln` check passes on a branch that is up to date with
+`main`, with every review conversation resolved. Merge with **Rebase** or a
+**merge commit**; squash merging is turned off so that small commits survive.
+Release tags (`v*`) can only be created, moved or deleted by repository
+admins.
 
 ## Rules that are never relaxed
 

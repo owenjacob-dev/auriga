@@ -30,6 +30,19 @@ The maintainer accepted the proposed defaults for all six questions.
 | 2026-11-14 | `github.com/charmbracelet/x/exp/teatest/v2` is pinned to a pseudo-version. | The module has no tagged releases; it targets `charm.land/bubbletea/v2`. |
 | 2026-11-14 | GitHub Actions run `actions/checkout@v7`, `actions/setup-go@v7` and `golangci-lint-action@v9` with golangci-lint v2.15.0. | Latest major tags as of this date; Dependabot keeps them current. |
 
+## Repository settings (15 Nov 2026)
+
+| Setting | Value | Reason |
+| ------- | ----- | ------ |
+| Pull request creation | Collaborators only | Outside contributors take part through issues. |
+| `main` ruleset | No deletion or force push; pull request required with 0 approvals, stale approvals dismissed and conversations resolved; `Lint, test, secrets, vuln` must pass on an up-to-date branch; repository admins may bypass for pull requests only | One maintainer cannot approve their own pull request, so required approvals would block every merge. |
+| Merge methods | Merge commit and rebase; squash off | `CLAUDE.md` asks for small commits, which squash merging would collapse. |
+| `release-tags` ruleset | `v*` tags cannot be created, moved or deleted except by repository admins | Releases are built and signed from these tags. |
+| Actions | GitHub-owned actions plus `golangci/golangci-lint-action` only; default token read-only; workflows from every outside contributor need approval | Supply-chain hardening (`SPEC.md` "Supply chain"). |
+| Security | Private vulnerability reporting, Dependabot alerts and security updates, secret scanning with push protection | `SECURITY.md` points to private reporting. |
+| Web commits | Sign-off required | Matches the DCO requirement. |
+| Not enforced | DCO sign-off on pushed commits; signed (GPG or SSH) commits | DCO needs the DCO GitHub App, which only a person can install. Signed commits are not used yet. |
+
 ## Verifications
 
 | Item | Milestone | Result |
