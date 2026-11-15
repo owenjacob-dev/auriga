@@ -1,0 +1,16 @@
+# Docker Compose stack for `make itest`.
+#
+# M0 holds a single placeholder host so the target runs end to end. M1 replaces
+# it with three sshd hosts plus a ProxyJump bastion; M2 adds stellar-core on a
+# private network passphrase. Tests never point at testnet or pubnet.
+name: auriga-itest
+
+services:
+  host-a:
+    image: ubuntu:24.04
+    command: ["sleep", "infinity"]
+    init: true
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 2s
+      retries: 5
