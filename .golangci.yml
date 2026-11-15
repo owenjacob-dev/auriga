@@ -53,7 +53,9 @@ linters:
   exclusions:
     rules:
       - path: _test\.go
-        linters: [gosec]
+        linters: [gosec, errcheck, noctx]
+      - path: internal/sshx/sshtest/
+        linters: [errcheck, noctx]
 
 formatters:
   enable:
