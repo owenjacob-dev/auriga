@@ -1,0 +1,24 @@
+┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ● ok  acme-a  [Info] Quorum  Peers  Upgrades  Config  Probe                  │
+│                                                                              │
+│ State     Synced!   Ledger    61234567 (age 3s)                              │
+│ Peers     12 auth, 2 pending   Quorum    fail_at 3, intersection yes         │
+│ Protocol  supports 30, ledger at 29   Build     stellar-core 30.0.0 (synthe… │
+│ Status    Armed with network upgrades: upgradetime=2026-11-23T17:00:00Z, pr… │
+│                                                                              │
+│ {                                                                            │
+│   "info": {                                                                  │
+│     "build": "stellar-core 30.0.0 (synthetic)",                              │
+│     "history_failure_rate": "0",                                             │
+│     "ledger": {                                                              │
+│       "age": 3,                                                              │
+│       "baseFee": 100,                                                        │
+│       "baseReserve": 5000000,                                                │
+│       "closeTime": 1794830400,                                               │
+│       "hash": "1f9a0c7d8e6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a19080… │
+│       "maxTxSetSize": 1000,                                                  │
+│       "maxSorobanTxSetSize": 100,                                            │
+│       "num": 61234567,                                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel · last info 0s ago                       │
+└ tab next  r refresh  c copy  esc back  ? help  q quit ───────────────────────┘

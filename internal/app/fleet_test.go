@@ -252,7 +252,9 @@ func TestLoadConnectProbeAndGroup(t *testing.T) {
 	// Detail view for the selected host.
 	m = step(t, m, keyPress("k"))
 	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}) // Info -> Probe
 	out := ansi.Strip(m.Render())
+	out += ansi.Strip(step(t, m, keyPress("pgdown")).Render())
 	for _, want := range []string{"Node public key   " + pubB, "config is world-readable (mode 644)", "only 5G free"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("detail lacks %q:\n%s", want, out)
