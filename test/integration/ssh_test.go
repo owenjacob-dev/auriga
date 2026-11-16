@@ -121,7 +121,8 @@ func TestThreeHostsConnectAndProbe(t *testing.T) {
 				return
 			}
 			if !f.StellarUser || !f.CoreInstalled || !strings.HasPrefix(f.CoreVersion, "stellar-core 30.0.0") || f.ServiceActive != "active" ||
-				!f.ConfigPresent || f.ConfigOwner != "root:stellar" || f.ConfigMode != "640" || f.HTTPPort != 11626 || f.DiskAvailKB <= 0 {
+				!f.ConfigPresent || f.ConfigOwner != "root:stellar" || f.ConfigMode != "640" || f.HTTPPort != 11626 || f.DiskAvailKB <= 0 ||
+				f.ServiceWorkDir != "/" || f.BucketDir != "/var/lib/stellar/buckets" {
 				t.Errorf("%s probe facts %+v", a, f)
 			}
 			rc, err := r.ReadConfig(ctx, a, remote.DefaultConfigPath)

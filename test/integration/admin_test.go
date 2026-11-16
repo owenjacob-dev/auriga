@@ -77,7 +77,7 @@ func TestLiveInfoOnThreeHosts(t *testing.T) {
 	wantTransport := map[string]string{"it-a": "ssh tunnel", "it-b": "on host (http-command)", "it-c": "ssh tunnel"}
 	var ledgers []uint64
 	for _, a := range targets {
-		c := b.AdminClient(a, 11626, remote.DefaultConfigPath)
+		c := b.AdminClient(a, 11626, remote.DefaultConfigPath, remote.DefaultService)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		r, raw, err := c.Info(ctx)
 		cancel()
@@ -114,7 +114,7 @@ func TestAdminAllowlistOnHost(t *testing.T) {
 	t.Cleanup(pool.Close)
 	r := remote.NewRunner(pool, nil)
 	for _, cmd := range []string{"manualclose", "tx?blob=AAAA", "upgrades?mode=set&upgradetime=2026-01-01T00:00:00Z"} {
-		if _, err := r.AdminGet(context.Background(), "it-a", 11626, cmd, remote.DefaultConfigPath); err == nil || !strings.Contains(err.Error(), "not allowed") {
+		if _, err := r.AdminGet(context.Background(), "it-a", 11626, cmd, remote.DefaultConfigPath, remote.DefaultService); err == nil || !strings.Contains(err.Error(), "not allowed") {
 			t.Errorf("%s: %v", cmd, err)
 		}
 	}
