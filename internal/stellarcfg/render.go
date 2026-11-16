@@ -53,7 +53,7 @@ func (s Seed) Redacted() string {
 
 // Render writes the config in Auriga's fixed layout: header, network, node
 // identity, ports and storage, peers, other top-level keys kept from the
-// original, [[HOME_DOMAINS]] by quality then domain, [[VALIDATORS]] by home
+// original, quorum safety, [[HOME_DOMAINS]] by quality then domain, [[VALIDATORS]] by home
 // domain then name, [HISTORY.*] by name, then other tables kept from the
 // original. TOML requires every plain key before the first table, so kept
 // keys come before the tables and kept tables after them.
@@ -95,6 +95,9 @@ func Render(c *Config, opt RenderOptions) ([]byte, error) {
 	w.list("KNOWN_PEERS", c.KnownPeers)
 	w.list("PREFERRED_PEERS", c.PreferredPeers)
 	w.list("PREFERRED_PEER_KEYS", c.PreferredPeerKeys)
+
+	w.section("Quorum safety")
+	w.boolean("UNSAFE_QUORUM", c.UnsafeQuorum)
 
 	w.section("Other settings, kept as they were")
 	for _, e := range c.Unknown {

@@ -81,11 +81,17 @@ The maintainer accepted the proposed defaults for all six questions.
 | Read-only triggers: the legacy `[QUORUM_SET]`, `HISTORY`/`VALIDATORS`/`HOME_DOMAINS`/`QUORUM_SET` as inline or dotted values, and unknown keys inside `[[VALIDATORS]]`, `[[HOME_DOMAINS]]` or `[HISTORY.*]`. Other unknown keys and tables keep a config adoptable. | These are the shapes the model cannot rewrite without changing their meaning. |
 | `LOG_FILE_PATH = ""` is kept distinct from an absent key. | Empty turns file logging off; absent means the relative default, which fails under the packaged unit. |
 
+## M4 decisions (16 Nov 2026)
+
+| Decision | Reason |
+| -------- | ------ |
+| `UNSAFE_QUORUM` is an owned key. The wizard writes `UNSAFE_QUORUM=true` only when the generated quorum set tolerates no failures and the operator ticks a consent box in the quorum step (and types `pubnet` on pubnet). Agreed with the maintainer. | stellar-core 30.0.0 refuses to start ("SCP unsafe") when the top level of its quorum set tolerates zero failures, unless `UNSAFE_QUORUM=true`. SPEC.md only warns below four entities. The testnet acceptance scenario (own org + SDF testnet) always has that shape, as does the package's testnet example. Measured top levels: own org of 3 alone, 2 of 3 validators: accepted. Own org + 1 or 2 `HIGH` orgs, 2 of 2 or 3 of 3: refused. Own org + 3 `HIGH` orgs, 3 of 4: accepted. |
+
 ## Verifications
 
 | Item | Milestone | Result |
 | ---- | --------- | ------ |
-| How stellar-core counts the three-validator minimum for a `HIGH` org when a node lists only its siblings | M4 | Pending |
+| How stellar-core counts the three-validator minimum for a `HIGH` org when a node lists only its siblings | M4 | **Siblings only is correct, and the only form that works.** Checked on stellar-core 30.0.0 by loading configs with `new-db` (16 Nov 2026): `HIGH` with two siblings that have `HISTORY` is accepted, and core adds the node itself (generated qset `{"t":2,"v":["itest-b","itest-a","itest-c"]}`). `HIGH` with one sibling is refused ("must have redundancy of at least 3": self + 1 = 2). A `HIGH` sibling without `HISTORY` is refused ("critical and high quality must have an archive"). Listing the node itself is refused under its `NODE_SEED` alias ("name already used") and under any other name ("naming node twice"). The node itself needs no `HISTORY` entry. |
 | The helper-script stdin protocol (script, sudo password and seed on one stdin) works under dash and bash | M1 | **Changed.** dash reads a piped script in large blocks, so a secret placed after the script was swallowed by the parser and never reached the helper's `read` (bash reads byte by byte and worked). The runner now sends the secret only when the helper asks for it: `auriga_read_secret` prints a request line, and the runner writes the secret after seeing it. sh has finished reading the script by then, and a helper that never asks never receives the secret. The command stays `sudo … sh -s -- <args>`. Tested under dash and bash with the sudo shim (2026-11-16); real hosts are checked in the compose suite. |
 | `ssh -G` output across OpenSSH versions | M1 | OpenSSH 10.0 prints `StrictHostKeyChecking yes` as `true` (and `no` as `false`); the parser normalises both. 10.0 output is recorded in `internal/sshx/testdata/`; Ubuntu 24.04's OpenSSH 9.6 is added with the compose suite. |
 | Package-default config fingerprint from `apt.stellar.org` | M3 | The package installs no `stellar-core.cfg` (only `stellar-core_example*.cfg` and others in `/etc/stellar`), so unconfigured means missing or comments only. |

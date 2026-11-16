@@ -63,11 +63,11 @@ func TestRealConfigsAreAdoptableAndRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("render does not parse: %v\n%s", err, out)
 			}
-			if !reflect.DeepEqual(back.Config.Unknown, cfg.Unknown) || len(cfg.Unknown) == 0 {
-				t.Errorf("unknown keys changed: %+v -> %+v", cfg.Unknown, back.Config.Unknown)
+			if !reflect.DeepEqual(back.Config, cfg) {
+				t.Errorf("model changed after render and parse:\n%+v\n%+v", cfg, back.Config)
 			}
-			if !strings.Contains(string(out), "UNSAFE_QUORUM=true") {
-				t.Errorf("UNSAFE_QUORUM not kept verbatim:\n%s", out)
+			if cfg.UnsafeQuorum == nil || !*cfg.UnsafeQuorum || !strings.Contains(string(out), "UNSAFE_QUORUM = true") {
+				t.Errorf("UNSAFE_QUORUM not kept:\n%s", out)
 			}
 			for _, s := range []string{SeedA, SeedB, SeedC} {
 				if strings.Contains(string(rc.Text)+string(out), s) {
