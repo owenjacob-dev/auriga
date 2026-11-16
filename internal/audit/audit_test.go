@@ -53,6 +53,18 @@ func TestAppendReadFilter(t *testing.T) {
 	}
 }
 
+func TestSameSecondKeepsOrder(t *testing.T) {
+	l := Open(t.TempDir())
+	ts := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	for _, a := range []string{"deploy.stage", "deploy.backup", "deploy.install"} {
+		l.Append(Entry{Time: ts, Host: "h", Action: a, Result: OK})
+	}
+	got, _, _ := l.Read()
+	if got[0].Action != "deploy.install" || got[1].Action != "deploy.backup" || got[2].Action != "deploy.stage" {
+		t.Errorf("%+v", got)
+	}
+}
+
 func TestEmptyAndConcurrent(t *testing.T) {
 	l := Open(t.TempDir())
 	if got, _, err := l.Read(); err != nil || got != nil {

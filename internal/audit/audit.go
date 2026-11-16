@@ -12,7 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -104,7 +104,8 @@ func (l *Log) Append(e Entry) error {
 	return f.Close()
 }
 
-// Read returns the log's entries, newest first. Lines that do not parse
+// Read returns the log's entries, newest first (the reverse of the order
+// they were appended). Lines that do not parse
 // are skipped and counted.
 func (l *Log) Read() ([]Entry, int, error) {
 	l.mu.Lock()
@@ -135,7 +136,9 @@ func (l *Log) Read() ([]Entry, int, error) {
 	if err := sc.Err(); err != nil {
 		return nil, bad, fmt.Errorf("reading %s: %w", l.path, err)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Time.After(out[j].Time) })
+	// Lines are appended in order; times are whole seconds, so several
+	// entries can share one.
+	slices.Reverse(out)
 	return out, bad, nil
 }
 
