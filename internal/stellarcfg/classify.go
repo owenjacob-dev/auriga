@@ -78,7 +78,10 @@ func Diff(oldName, newName string, old, new []byte) string {
 // will reorder and comments that will be lost).
 func AdoptionNotes(res *Result) []string {
 	var notes []string
-	if res.Comments > 0 {
+	switch {
+	case res.Comments == 1:
+		notes = append(notes, "1 comment line will be dropped; the backup taken before the deploy keeps it")
+	case res.Comments > 1:
 		notes = append(notes, fmt.Sprintf("%d comment lines will be dropped; the backup taken before the deploy keeps them", res.Comments))
 	}
 	notes = append(notes, "settings are rewritten in Auriga's fixed order")
@@ -86,7 +89,10 @@ func AdoptionNotes(res *Result) []string {
 	for _, e := range res.Config.Unknown {
 		kept = append(kept, e.Key)
 	}
-	if len(kept) > 0 {
+	switch {
+	case len(kept) == 1:
+		notes = append(notes, "1 other setting is kept unchanged: "+kept[0])
+	case len(kept) > 1:
 		notes = append(notes, fmt.Sprintf("%d other settings are kept unchanged: %s", len(kept), strings.Join(kept, ", ")))
 	}
 	return notes

@@ -15,6 +15,7 @@ import (
 
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/strkey"
 	"github.com/owenjacob-dev/auriga/internal/ui"
 	"github.com/owenjacob-dev/auriga/internal/ui/components"
@@ -50,12 +51,18 @@ type Model struct {
 	data   map[ui.AdminView]*fetched
 	flash  string
 	fleet  *ui.Fleet
+	// showDiff switches the Config tab from the file to the deploy diff.
+	showDiff bool
+	version  string
 }
 
-// New opens alias on the Info tab.
+// New opens alias on the Info tab. version is Auriga's, for renders.
 func New(alias string) *Model {
 	return &Model{alias: alias, data: map[ui.AdminView]*fetched{}}
 }
+
+// WithVersion sets the version shown in rendered configs.
+func (m *Model) WithVersion(v string) *Model { m.version = v; return m }
 
 // OpenOn opens alias on tab.
 func OpenOn(alias string, tab Tab) *Model {
@@ -81,6 +88,7 @@ var (
 	kTransitive = key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "transitive"))
 	kScroll     = key.NewBinding(key.WithKeys("up", "down", "j", "k", "pgup", "pgdown"), key.WithHelp("↑↓", "scroll"))
 	kBack       = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back"))
+	kDiff       = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
 )
 
 // Keys implements ui.Screen.
@@ -88,6 +96,9 @@ func (m *Model) Keys() []key.Binding {
 	keys := []key.Binding{kTab, kRefresh}
 	if m.tab == TabQuorum {
 		keys = append(keys, kTransitive)
+	}
+	if m.tab == TabConfig {
+		keys = append(keys, kDiff)
 	}
 	if m.raw() != nil {
 		keys = append(keys, kCopy)
@@ -105,6 +116,7 @@ func (m *Model) FullHelp() []key.Binding {
 		long(kRefresh, "Fetch this tab again (and poll and probe the host)"),
 		long(kTransitive, "Quorum tab: run the network-wide intersection check"),
 		long(kCopy, "Copy this tab's raw JSON to the clipboard (OSC 52)"),
+		long(kDiff, "Config tab: switch between the file and what a first deploy changes"),
 		long(kBack, "Back to the dashboard"),
 	}
 }
@@ -190,6 +202,11 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 			if m.tab == TabQuorum {
 				return m, m.fetch(ui.ViewQuorumTransitive)
 			}
+		case "d":
+			if m.tab == TabConfig {
+				m.showDiff = !m.showDiff
+				m.scroll[TabConfig] = 0
+			}
 		case "c":
 			if raw := m.raw(); raw != nil {
 				m.flash = fmt.Sprintf("Copied %s JSON (%d bytes) to the clipboard.", strings.ToLower(tabNames[m.tab]), len(raw))
@@ -245,7 +262,7 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 	case TabUpgrades:
 		body = m.upgradesTab(t, ctx)
 	case TabConfig:
-		body = configTab(t, h)
+		body = m.configTab(t, h, ctx)
 	case TabProbe:
 		body = probeTab(t, h, ctx.Cols)
 	}
@@ -577,14 +594,73 @@ func (m *Model) upgradesTab(t theme.Theme, ctx ui.Context) []string {
 	return out
 }
 
-func configTab(t theme.Theme, h *ui.HostView) []string {
-	if h.Config == nil {
-		if h.Probe != nil && !h.Probe.ConfigPresent {
-			return []string{t.Muted.Render("No config file on this host yet.")}
-		}
+// configTab shows the classification, validation issues, backups and the
+// file itself, or (d) the diff a first deploy would make.
+func (m *Model) configTab(t theme.Theme, h *ui.HostView, ctx ui.Context) []string {
+	if h.Probe == nil {
 		return []string{t.Muted.Render("The config is read when the host is probed.")}
 	}
-	out := []string{t.Muted.Render("NODE_SEED was redacted on the host; the seed never left it."), ""}
+	c := h.Class
+	if c == nil {
+		return []string{t.Bad.Render("○ The config could not be read: ") + h.ProbeErr}
+	}
+	var out []string
+	switch c.Class {
+	case stellarcfg.Unconfigured:
+		return []string{t.Warn.Render("◐ Unconfigured: there is no config at this host's config path yet."),
+			t.Muted.Render("The setup wizard (s on the dashboard) creates one.")}
+	case stellarcfg.ReadOnly:
+		out = append(out, t.Warn.Render("◐ Read-only: Auriga monitors this host and can arm upgrades, but will not rewrite its config."))
+		for _, r := range c.Reasons {
+			out = append(out, wrap("  · "+r, ctx.Cols)...)
+		}
+	case stellarcfg.Adoptable:
+		out = append(out, t.OK.Render("● Adoptable: Auriga can manage it. Nothing changes until you deploy."))
+	}
+
+	if len(h.Issues) > 0 {
+		out = append(out, "", t.Header.Render("Issues"))
+		for _, i := range h.Issues {
+			if i.Severity == stellarcfg.Block {
+				out = append(out, wrap(t.Bad.Render("○ ")+i.Key+": "+i.Message, ctx.Cols)...)
+			} else {
+				out = append(out, wrap(t.Warn.Render("◐ ")+i.Key+": "+i.Message, ctx.Cols)...)
+			}
+		}
+	}
+
+	out = append(out, "", t.Header.Render("Backups"))
+	if len(h.Backups) == 0 {
+		out = append(out, t.Muted.Render("None yet. Each deploy keeps the ten newest."))
+	}
+	for _, b := range h.Backups {
+		out = append(out, fmt.Sprintf("  %s  %s %s  %d bytes", b.Time.UTC().Format("2006-01-02 15:04:05Z"), b.Owner, b.Mode, b.Size))
+	}
+
+	if m.showDiff && c.Result != nil {
+		out = append(out, "", t.Header.Render("What a first deploy changes"))
+		for _, n := range stellarcfg.AdoptionNotes(c.Result) {
+			out = append(out, wrap("  · "+n, ctx.Cols)...)
+		}
+		rendered, err := stellarcfg.Render(c.Result.Config, stellarcfg.RenderOptions{Version: m.version, Time: h.ProbedAt})
+		if err != nil {
+			return append(out, t.Bad.Render("○ "+err.Error()))
+		}
+		out = append(out, "")
+		for _, l := range strings.Split(strings.TrimRight(stellarcfg.Diff("on the host", "rendered by auriga", h.Config.Text, rendered), "\n"), "\n") {
+			switch {
+			case strings.HasPrefix(l, "+") && !strings.HasPrefix(l, "+++"):
+				out = append(out, t.OK.Render(l))
+			case strings.HasPrefix(l, "-") && !strings.HasPrefix(l, "---"):
+				out = append(out, t.Bad.Render(l))
+			default:
+				out = append(out, l)
+			}
+		}
+		return out
+	}
+
+	out = append(out, "", t.Header.Render("On the host")+t.Muted.Render("  (NODE_SEED redacted there; the seed never left it)"))
 	return append(out, strings.Split(strings.TrimRight(string(h.Config.Text), "\n"), "\n")...)
 }
 

@@ -1,0 +1,24 @@
+┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ◐ degraded  acme-a   Info  Quorum  Peers  Upgrades [Config] Probe            │
+│                                                                              │
+│ ● Adoptable: Auriga can manage it. Nothing changes until you deploy.         │
+│                                                                              │
+│ Issues                                                                       │
+│ ◐ LOG_FILE_PATH: the default log file path resolves against / because        │
+│ the service sets no WorkingDirectory; use an absolute path                   │
+│ ◐ BUCKET_DIR_PATH: the default bucket directory resolves against /           │
+│ because the service sets no WorkingDirectory; use an absolute path           │
+│ ◐ DATABASE: the SQLite file "stellar.db" resolves against / because the      │
+│ service sets no WorkingDirectory; use an absolute path                       │
+│                                                                              │
+│ Backups                                                                      │
+│   2026-11-02 13:10:04Z  root:stellar 640  812 bytes                          │
+│                                                                              │
+│ What a first deploy changes                                                  │
+│ · 1 comment line will be dropped; the backup taken before the deploy         │
+│ keeps it                                                                     │
+│ · settings are rewritten in Auriga's fixed order                             │
+│ · 1 other setting is kept unchanged: CATCHUP_RECENT                          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel                                          │
+└ tab next  r refresh  d diff  esc back  ? help  q quit ───────────────────────┘

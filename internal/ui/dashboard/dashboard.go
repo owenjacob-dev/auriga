@@ -14,6 +14,7 @@ import (
 
 	"github.com/owenjacob-dev/auriga/internal/health"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui"
 	"github.com/owenjacob-dev/auriga/internal/ui/components"
 	"github.com/owenjacob-dev/auriga/internal/ui/theme"
@@ -280,7 +281,7 @@ func Health(h *ui.HostView, r health.Row) theme.Status {
 		return theme.StatusDown
 	}
 	switch {
-	case r.Overall == health.Bad, h.PollFailures >= health.FailuresBeforeSlow:
+	case r.Overall == health.Bad, h.PollFailures >= health.FailuresBeforeSlow, len(Dangers(h)) > 0:
 		return theme.StatusDown
 	case h.Info == nil, h.Probing, h.ProbeErr != "", h.InfoErr != "", r.Overall == health.Warn, len(Warnings(h)) > 0:
 		return theme.StatusDegraded
@@ -288,12 +289,48 @@ func Health(h *ui.HostView, r health.Row) theme.Status {
 	return theme.StatusOK
 }
 
-// Warnings lists probe findings that need attention.
+// Dangers lists findings that put the node at risk; they turn the host red.
+func Dangers(h *ui.HostView) []string {
+	var d []string
+	if h.Class != nil && h.Class.Result != nil {
+		if c := h.Class.Result.Config; c.PublicHTTPPort != nil && *c.PublicHTTPPort {
+			d = append(d, "PUBLIC_HTTP_PORT=true: the admin endpoint is open to the network")
+		}
+	}
+	return d
+}
+
+// Warnings lists probe and config findings that need attention.
 func Warnings(h *ui.HostView) []string {
 	var w []string
+	if c := h.Class; c != nil {
+		switch c.Class {
+		case stellarcfg.ReadOnly:
+			w = append(w, "config is read-only: "+c.Reasons[0])
+		case stellarcfg.Unconfigured:
+			w = append(w, "no config yet: run the setup wizard")
+		}
+	}
+	nBlock, nWarn := 0, 0
+	for _, i := range h.Issues {
+		if i.Rule == "public-http-port" {
+			continue // reported as a danger
+		}
+		if i.Severity == stellarcfg.Block {
+			nBlock++
+		} else {
+			nWarn++
+		}
+	}
+	switch {
+	case nBlock > 0:
+		w = append(w, fmt.Sprintf("%d config problems to fix before a deploy", nBlock))
+	case nWarn > 0:
+		w = append(w, fmt.Sprintf("%d config warnings", nWarn))
+	}
 	p := h.Probe
 	if p == nil {
-		return nil
+		return w
 	}
 	if !p.CoreInstalled {
 		w = append(w, "stellar-core is not installed")
@@ -396,13 +433,13 @@ func statusLine(t theme.Theme, h *ui.HostView, r health.Row, now time.Time) stri
 	if h.ProbeErr != "" {
 		problems = append(problems, "probe failed: "+h.ProbeErr)
 	}
-	problems = append(problems, Warnings(h)...)
+	problems = append(append(Dangers(h), problems...), Warnings(h)...)
 	if !h.InfoAt.IsZero() {
 		s += " · last info " + ago(now.Sub(h.InfoAt))
 	}
 	if len(problems) > 0 {
 		style := t.Warn
-		if r.Overall == health.Bad || h.InfoErr != "" {
+		if r.Overall == health.Bad || h.InfoErr != "" || len(Dangers(h)) > 0 {
 			style = t.Bad
 		}
 		return style.Render(h.Alias + " · " + strings.Join(problems, " · ") + " · " + strings.TrimPrefix(s, h.Alias+" · "))

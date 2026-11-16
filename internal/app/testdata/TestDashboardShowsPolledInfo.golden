@@ -1,4 +1,4 @@
-┌ auriga · 3 hosts ────────────────────────────────────────────── 14:02:11 UTC ┐
+┌ auriga · 3 hosts · pubnet ───────────────────────────────────── 14:02:11 UTC ┐
 │   HOST        STATE         LEDGER    AGE  PEERS QUORUM   INT PROTO UPGRADE  │
 │ ● acme-a      Synced!       61234567  3s   12/2  18 f≥3   yes 30/29 P30 ▲    │
 │ ○ acme-b      Catching up   61234101  41s  4/3   —        —   30/29 —        │

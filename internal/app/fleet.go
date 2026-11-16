@@ -11,6 +11,7 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui"
 )
 
@@ -26,11 +27,12 @@ type (
 	}
 	inventorySavedMsg struct{ err error }
 	probeResultMsg    struct {
-		alias  string
-		seq    int
-		facts  *remote.ProbeFacts
-		config *remote.RedactedConfig
-		err    error
+		alias   string
+		seq     int
+		facts   *remote.ProbeFacts
+		config  *remote.RedactedConfig
+		backups []remote.Backup
+		err     error
 	}
 	backendDoneMsg struct{}
 )
@@ -233,6 +235,9 @@ func (m *Model) startProbe(hv *ui.HostView) tea.Cmd {
 			if err == nil {
 				res.config = &rc
 			}
+			// Backups only inform the Config tab; a failure here is not a
+			// probe failure.
+			res.backups, _ = b.ListBackups(ctx, alias, path)
 		}
 		return res
 	}
@@ -250,7 +255,8 @@ func (m *Model) handleProbeResult(r probeResultMsg) tea.Cmd {
 		return nil
 	}
 	hv.ProbeErr = ""
-	hv.Probe, hv.Config = r.facts, r.config
+	hv.Probe, hv.Config, hv.Backups = r.facts, r.config, r.backups
+	classify(hv)
 	ih := m.inv.Host(r.alias)
 	if ih == nil {
 		return nil
@@ -266,7 +272,12 @@ func (m *Model) handleProbeResult(r probeResultMsg) tea.Cmd {
 		if c.NodeAlias != "" && ih.NodeName == "" {
 			ih.NodeName, changed = c.NodeAlias, true
 		}
-		hv.HomeDomain, hv.Network = peekConfig(c.Text)
+		if hv.Class != nil && hv.Class.Result != nil {
+			cfg := hv.Class.Result.Config
+			hv.HomeDomain, hv.Network = cfg.NodeHomeDomain, inventory.NetworkFromPassphrase(cfg.NetworkPassphrase)
+		} else {
+			hv.HomeDomain, hv.Network = peekConfig(c.Text)
+		}
 		before := ih.Org
 		m.inv.GroupByHomeDomain(r.alias, hv.HomeDomain, hv.Network)
 		if m.inv.Host(r.alias).Org != before {
@@ -278,6 +289,28 @@ func (m *Model) handleProbeResult(r probeResultMsg) tea.Cmd {
 		return m.saveInventory()
 	}
 	return nil
+}
+
+// classify sets the host's config classification and validation issues
+// from its latest probe.
+func classify(hv *ui.HostView) {
+	hv.Class, hv.Issues = nil, nil
+	if hv.Probe == nil {
+		return
+	}
+	var cl stellarcfg.Classification
+	switch {
+	case !hv.Probe.ConfigPresent:
+		cl = stellarcfg.Classify(false, nil)
+	case hv.Config == nil:
+		return // present but unreadable: the probe error says why
+	default:
+		cl = stellarcfg.Classify(true, hv.Config.Text)
+	}
+	hv.Class = &cl
+	if cl.Result != nil {
+		hv.Issues = stellarcfg.Validate(cl.Result.Config, stellarcfg.ValidateOptions{ServiceWorkDir: hv.Probe.ServiceWorkDir})
+	}
 }
 
 // peekConfig reads NODE_HOME_DOMAIN and the network from a redacted config.
