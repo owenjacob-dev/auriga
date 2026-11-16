@@ -85,6 +85,9 @@ The maintainer accepted the proposed defaults for all six questions.
 
 | Decision | Reason |
 | -------- | ------ |
+| Keys generated on a host are **pending** in the plan: siblings' `[[VALIDATORS]]` show `<generated at deploy: alias>` and the review says so. The deploy (M5) first runs `gen-seed` on every such host, keeping each seed in a root-only pending file on its host and returning only the public key, then re-plans with the real keys before staging anything. | Siblings must list each other's keys, so the keys must exist before any config is rendered. Generating them in the wizard would change hosts before the review, which SPEC.md forbids. |
+| Configs the wizard writes for new nodes use absolute `BUCKET_DIR_PATH` (`/var/lib/stellar/buckets`) and `LOG_FILE_PATH` (`/var/log/stellar/stellar-core.log`); adopted hosts keep their values. | The packaged unit runs from `/` (M2 findings). |
+| Both fixture orgs' renders, with test-vector seeds in place of the markers, are loaded into stellar-core 30.0.0 by the integration suite (`TestWizardRendersLoadInStellarCore`); all six are accepted. | Checks the generated configs against the real parser and quorum safety checks, not only golden files. |
 | `UNSAFE_QUORUM` is an owned key. The wizard writes `UNSAFE_QUORUM=true` only when the generated quorum set tolerates no failures and the operator ticks a consent box in the quorum step (and types `pubnet` on pubnet). Agreed with the maintainer. | stellar-core 30.0.0 refuses to start ("SCP unsafe") when the top level of its quorum set tolerates zero failures, unless `UNSAFE_QUORUM=true`. SPEC.md only warns below four entities. The testnet acceptance scenario (own org + SDF testnet) always has that shape, as does the package's testnet example. Measured top levels: own org of 3 alone, 2 of 3 validators: accepted. Own org + 1 or 2 `HIGH` orgs, 2 of 2 or 3 of 3: refused. Own org + 3 `HIGH` orgs, 3 of 4: accepted. |
 
 ## Verifications
