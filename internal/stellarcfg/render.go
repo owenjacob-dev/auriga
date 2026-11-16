@@ -106,6 +106,45 @@ func Render(c *Config, opt RenderOptions) ([]byte, error) {
 		}
 	}
 
+	writeQuorum(&w, c)
+
+	hist := append([]HistoryArchive(nil), c.History...)
+	sort.SliceStable(hist, func(i, j int) bool { return hist[i].Name < hist[j].Name })
+	for _, h := range hist {
+		w.table("[HISTORY." + key(h.Name) + "]")
+		w.str("get", h.Get)
+		w.str("put", h.Put)
+		w.str("mkdir", h.Mkdir)
+	}
+
+	first := true
+	for _, e := range c.Unknown {
+		if e.Table {
+			if first {
+				w.blank()
+				w.line("# Other tables, kept as they were")
+				first = false
+			} else {
+				w.blank()
+			}
+			w.raw(e.Raw)
+		}
+	}
+	return []byte(w.String()), nil
+}
+
+// RenderQuorumEntries writes [[HOME_DOMAINS]] and [[VALIDATORS]] entries
+// in the same order and form as Render, for editing as text.
+func RenderQuorumEntries(homeDomains []HomeDomain, validators []Validator) string {
+	c := &Config{HomeDomains: homeDomains, Validators: validators}
+	var w writer
+	writeQuorum(&w, c)
+	return strings.TrimLeft(w.String(), "\n")
+}
+
+// writeQuorum writes [[HOME_DOMAINS]] by quality then domain and
+// [[VALIDATORS]] by home domain then name.
+func writeQuorum(w *writer, c *Config) {
 	homes := append([]HomeDomain(nil), c.HomeDomains...)
 	sort.SliceStable(homes, func(i, j int) bool {
 		if homes[i].Quality.rank() != homes[j].Quality.rank() {
@@ -135,30 +174,6 @@ func Render(c *Config, opt RenderOptions) ([]byte, error) {
 		w.str("HISTORY", v.History)
 		w.str("QUALITY", string(v.Quality))
 	}
-
-	hist := append([]HistoryArchive(nil), c.History...)
-	sort.SliceStable(hist, func(i, j int) bool { return hist[i].Name < hist[j].Name })
-	for _, h := range hist {
-		w.table("[HISTORY." + key(h.Name) + "]")
-		w.str("get", h.Get)
-		w.str("put", h.Put)
-		w.str("mkdir", h.Mkdir)
-	}
-
-	first := true
-	for _, e := range c.Unknown {
-		if e.Table {
-			if first {
-				w.blank()
-				w.line("# Other tables, kept as they were")
-				first = false
-			} else {
-				w.blank()
-			}
-			w.raw(e.Raw)
-		}
-	}
-	return []byte(w.String()), nil
 }
 
 type writer struct {

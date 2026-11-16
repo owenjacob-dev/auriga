@@ -82,6 +82,10 @@ type HostPlan struct {
 	// Pending lists siblings whose keys are generated at deploy time; the
 	// deploy re-plans with the real keys before staging anything.
 	Pending []string
+	// OwnQuorum is true when the host overrides the org-wide quorum set.
+	OwnQuorum bool
+	// Preview is the quorum set stellar-core will build for this host.
+	Preview []string
 }
 
 // Issue is a problem found while planning, tied to the step that fixes it.
@@ -250,30 +254,62 @@ func BuildPlan(in Input) *Plan {
 			}
 		}
 	}
-	if strings.TrimSpace(d.Quorum.Manual) != "" {
-		res, err := stellarcfg.Parse([]byte(d.Quorum.Manual))
-		switch {
-		case err != nil:
-			add(StepQuorum, "", "manual-parse", quorum.Block, "pasted entries do not parse: %v", err)
-		case !onlyQuorumEntries(res.Config):
-			add(StepQuorum, "", "manual-extra", quorum.Block, "paste only [[HOME_DOMAINS]] and [[VALIDATORS]] entries")
-		default:
-			homeDomains = append(homeDomains, res.Config.HomeDomains...)
-			others = append(others, res.Config.Validators...)
-		}
+	if hds, vals, err := ParseQuorumEntries(d.Quorum.Manual); err != nil {
+		add(StepQuorum, "", "manual-parse", quorum.Block, "pasted entries: %v", err)
+	} else {
+		homeDomains = append(homeDomains, hds...)
+		others = append(others, vals...)
 	}
 
-	for i, h := range d.Hosts {
+	for _, h := range d.Hosts {
 		hp, issues := planHost(in, h, passphrase, keys, homeDomains, others)
 		p.Issues = append(p.Issues, issues...)
 		p.Hosts = append(p.Hosts, hp)
-		if i == 0 && hp.Config != nil {
-			if set := quorum.Generate(hp.Config, quorum.Self{Name: d.Keys[h].Alias, PublicKey: keys[h], HomeDomain: d.HomeDomain}); set != nil {
-				p.Preview = set.Lines()
-			}
+		if p.Preview == nil && !hp.OwnQuorum {
+			p.Preview = hp.Preview
 		}
 	}
 	return p
+}
+
+// ParseQuorumEntries reads pasted [[HOME_DOMAINS]] and [[VALIDATORS]]
+// entries; anything else is refused. Empty text gives nothing.
+func ParseQuorumEntries(text string) ([]stellarcfg.HomeDomain, []stellarcfg.Validator, error) {
+	if strings.TrimSpace(text) == "" {
+		return nil, nil, nil
+	}
+	res, err := stellarcfg.Parse([]byte(text))
+	if err != nil {
+		return nil, nil, fmt.Errorf("do not parse: %w", err)
+	}
+	if !onlyQuorumEntries(res.Config) {
+		return nil, nil, fmt.Errorf("paste only [[HOME_DOMAINS]] and [[VALIDATORS]] entries")
+	}
+	return res.Config.HomeDomains, res.Config.Validators, nil
+}
+
+// OrgEntries returns the org-wide trusted orgs and validators besides the
+// own org: the prefill for a host's override.
+func OrgEntries(p *Plan) string {
+	for _, hp := range p.Hosts {
+		if hp.Config == nil || hp.OwnQuorum {
+			continue
+		}
+		var hds []stellarcfg.HomeDomain
+		for _, h := range hp.Config.HomeDomains {
+			if h.HomeDomain != hp.Config.NodeHomeDomain {
+				hds = append(hds, h)
+			}
+		}
+		var vals []stellarcfg.Validator
+		for _, v := range hp.Config.Validators {
+			if v.HomeDomain != hp.Config.NodeHomeDomain {
+				vals = append(vals, v)
+			}
+		}
+		return stellarcfg.RenderQuorumEntries(hds, vals)
+	}
+	return ""
 }
 
 // onlyQuorumEntries reports whether c sets nothing but [[HOME_DOMAINS]]
@@ -357,7 +393,18 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 		hp.Actions = append(hp.Actions, Action{Kind: "new-db", Reason: "a new node needs its database initialised"})
 	}
 
-	// Step 5: quorum. Siblings only: the node never lists itself.
+	// Step 5: quorum, or this host's override from step 7. Siblings only:
+	// the node never lists itself.
+	quorumStep := StepQuorum
+	if adv.QuorumOverride {
+		hp.OwnQuorum, quorumStep = true, StepAdvanced
+		hds, vals, err := ParseQuorumEntries(adv.QuorumEntries)
+		if err != nil {
+			add(StepAdvanced, "override-parse", quorum.Block, "quorum override: %v", err)
+		}
+		homeDomains = append([]stellarcfg.HomeDomain{homeDomains[0]}, withoutDomain(hds, d.HomeDomain)...)
+		others = withoutValidatorDomain(vals, d.HomeDomain)
+	}
 	c.HomeDomains = append([]stellarcfg.HomeDomain(nil), homeDomains...)
 	c.Validators = nil
 	var peers []string
@@ -426,7 +473,7 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 		if qi.Entry != "" {
 			msg = qi.Entry + " " + msg
 		}
-		issues = append(issues, Issue{Step: StepQuorum, Host: h, Rule: qi.Rule, Severity: qi.Severity, Message: msg})
+		issues = append(issues, Issue{Step: quorumStep, Host: h, Rule: qi.Rule, Severity: qi.Severity, Message: msg})
 	}
 
 	// Per-config validation, skipping keys that are pending.
@@ -434,14 +481,24 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 		if vi.Rule == "public-key" && strings.Contains(vi.Message, "<generated at deploy") {
 			continue
 		}
+		if vi.Rule == "database-missing" {
+			continue // the planner's own database-required rule covers it
+		}
 		sev := quorum.Warn
 		if vi.Severity == stellarcfg.Block {
 			sev = quorum.Block
 		}
-		issues = append(issues, Issue{Step: stepForKey(vi.Key), Host: h, Rule: vi.Rule, Severity: sev, Message: vi.Key + ": " + vi.Message})
+		step := stepForKey(vi.Key)
+		if step == StepQuorum {
+			step = quorumStep
+		}
+		issues = append(issues, Issue{Step: step, Host: h, Rule: vi.Rule, Severity: sev, Message: vi.Key + ": " + vi.Message})
 	}
 
 	hp.Config = &c
+	if set := quorum.Generate(&c, self); set != nil {
+		hp.Preview = set.Lines()
+	}
 	rendered, err := stellarcfg.Render(&c, in.Render)
 	if err != nil {
 		add(StepAdvanced, "render", quorum.Block, "%v", err)
@@ -452,6 +509,28 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 		hp.Diff = stellarcfg.Diff("on the host now", "after the deploy", f.ExistingText, rendered)
 	}
 	return hp, issues
+}
+
+// withoutDomain drops entries for the own org, which the override cannot
+// change (its validators are the siblings, set in step 4).
+func withoutDomain(hds []stellarcfg.HomeDomain, own string) []stellarcfg.HomeDomain {
+	var out []stellarcfg.HomeDomain
+	for _, h := range hds {
+		if h.HomeDomain != own {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+func withoutValidatorDomain(vals []stellarcfg.Validator, own string) []stellarcfg.Validator {
+	var out []stellarcfg.Validator
+	for _, v := range vals {
+		if v.HomeDomain != own {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // stepForKey maps a config key to the step where it is set.

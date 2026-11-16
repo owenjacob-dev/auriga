@@ -103,6 +103,11 @@ type AdvancedInput struct {
 	ExtraPeers []string `toml:"extra_peers"`
 	// PreferQuorum adds the quorum's public keys to PREFERRED_PEER_KEYS.
 	PreferQuorum bool `toml:"prefer_quorum"`
+	// QuorumOverride gives this host its own trusted orgs and validators
+	// (QuorumEntries, TOML) instead of the org-wide ones. The host's own
+	// org and its siblings are always kept.
+	QuorumOverride bool   `toml:"quorum_override,omitempty"`
+	QuorumEntries  string `toml:"quorum_entries,omitempty"`
 }
 
 // NewDraft returns a draft with defaults.

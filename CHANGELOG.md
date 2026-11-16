@@ -11,7 +11,9 @@ All notable changes to this project are documented here. The format follows
 - Setup wizard (`s`): eight steps (scope, network, node type, keys, quorum,
   history archive, advanced, review) that configure an org's hosts at once.
   New drafts start from what adopted hosts already run, and every step saves
-  a draft without secrets. Nothing touches a host before the review.
+  a draft without secrets. Nothing touches a host before the review. A host
+  can trust its own set of orgs in the Advanced step; by default all hosts
+  share one.
 - Quorum presets: SDF's testnet validators and the Tier 1 orgs for pubnet,
   embedded with their snapshot date; `ctrl+r` fetches the current list and
   shows a diff before replacing it.

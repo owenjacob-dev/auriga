@@ -719,6 +719,13 @@ func (m *Model) reviewView(t theme.Theme, ctx ui.Context) []string {
 		}
 		out = append(out, components.Fit(t.Warn.Render("◐ will run "+what+": "+a.Reason+" (a rollback cannot undo it)"), ctx.Cols))
 	}
+	if len(hp.Preview) > 0 {
+		q := "quorum: " + strings.TrimSpace(hp.Preview[0])
+		if hp.OwnQuorum {
+			q += " · its own set (step 7)"
+		}
+		out = append(out, components.Fit(q, ctx.Cols))
+	}
 	if len(hp.Pending) > 0 {
 		out = append(out, t.Muted.Render("Keys of "+strings.Join(hp.Pending, ", ")+" are generated during the deploy and filled in then."))
 	}

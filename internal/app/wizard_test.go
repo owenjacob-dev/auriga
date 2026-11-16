@@ -134,15 +134,28 @@ func TestWizardTestnetBasicEndToEnd(t *testing.T) {
 	if !strings.Contains(out, "[7 Advanced]") || !strings.Contains(out, "6 –") {
 		t.Fatalf("history not skipped for Basic validators:\n%s", out)
 	}
-	// 7 Advanced: a database for each new node, defaults for the rest.
-	for range 3 {
-		m = keys(t, m, "sqlite3:///var/lib/stellar/stellar.db", "enter", "enter", "enter", "enter", "enter", "enter", "enter")
+	// 7 Advanced: a database for each new node, defaults for the rest; no
+	// quorum override for acme-a and acme-b.
+	for range 2 {
+		m = keys(t, m, "sqlite3:///var/lib/stellar/stellar.db", "enter", "enter", "enter", "enter", "enter", "enter", "enter", "enter")
 	}
+	// acme-c takes its own quorum set: the editor opens with the org-wide
+	// entries, kept as they are here.
+	m = keys(t, m, "sqlite3:///var/lib/stellar/stellar.db", "enter", "enter", "enter", "enter", "enter", "enter", "enter", "y")
+	if out := screen(m); !strings.Contains(out, "acme-c: own quorum set") || !strings.Contains(out, "sdftest1") {
+		t.Fatalf("override editor not shown with the org-wide entries:\n%s", out)
+	}
+	t.Run("override", func(t *testing.T) { golden.RequireEqual(t, screen(m)) })
+	m = keys(t, m, "enter")
 	out = screen(m)
 	if !strings.Contains(out, "[8 Review]") || !strings.Contains(out, "● Ready: 3 hosts on testnet. Nothing has changed on any host.") {
 		t.Fatalf("review:\n%s", out)
 	}
 	t.Run("review", func(t *testing.T) { golden.RequireEqual(t, out) })
+	m = keys(t, m, "tab", "tab")
+	if out := screen(m); !strings.Contains(out, "[acme-c]") || !strings.Contains(out, "its own set (step 7)") {
+		t.Errorf("review does not mark acme-c's own quorum set:\n%s", out)
+	}
 
 	w := m.top().(*wizard.Model)
 	plan := w.Plan()
@@ -170,6 +183,10 @@ func TestWizardTestnetBasicEndToEnd(t *testing.T) {
 	}
 	if !bytes.Contains(enc, []byte("GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H")) {
 		t.Error("imported public key not saved")
+	}
+
+	if d := b.drafts["acme"]; !d.Advanced["acme-c"].QuorumOverride || !strings.Contains(d.Advanced["acme-c"].QuorumEntries, "sdftest1") || d.Advanced["acme-a"].QuorumOverride {
+		t.Errorf("override not saved: %+v", d.Advanced)
 	}
 
 	// Leaving the wizard wipes the seeds.

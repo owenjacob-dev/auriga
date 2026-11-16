@@ -234,7 +234,7 @@ PUBLIC_KEY="` + keyC + `"
 			d.Quorum.OwnQuality = "HIGH"
 		}, "redundancy", StepQuorum},
 		{"manual paste", func(d *Draft, _ map[string]HostFacts) { d.Quorum.Manual = "[[VALIDATORS]\n" }, "manual-parse", StepQuorum},
-		{"manual extra keys", func(d *Draft, _ map[string]HostFacts) { d.Quorum.Manual = "DATABASE=\"x\"\n" }, "manual-extra", StepQuorum},
+		{"manual extra keys", func(d *Draft, _ map[string]HostFacts) { d.Quorum.Manual = "DATABASE=\"x\"\n" }, "manual-parse", StepQuorum},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -341,5 +341,83 @@ func TestDraftRoundTripHasNoSecrets(t *testing.T) {
 	}
 	if err := SaveDraft(dir, &Draft{OrgName: "../escape"}); err == nil {
 		t.Error("path in org name accepted")
+	}
+}
+
+func TestPerHostQuorumOverride(t *testing.T) {
+	d, f := pubnetFull()
+	in := Input{Draft: d, Facts: f, Preset: preset(t, presets.Pubnet), Render: renderOpt}
+	base := BuildPlan(in)
+	entries := OrgEntries(base)
+	if !strings.Contains(entries, "[[HOME_DOMAINS]]") || strings.Contains(entries, "acme.example") || strings.Count(entries, "[[VALIDATORS]]") != 30 {
+		t.Fatalf("prefill should hold the 30 preset validators and no own-org entries:\n%.300s", entries)
+	}
+
+	// acme-c trusts only the first three Tier 1 orgs; its own org stays.
+	hds, vals, err := ParseQuorumEntries(entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keep := map[string]bool{}
+	var keptVals []stellarcfg.Validator
+	for _, h := range hds[:3] {
+		keep[h.HomeDomain] = true
+	}
+	for _, v := range vals {
+		if keep[v.HomeDomain] {
+			keptVals = append(keptVals, v)
+		}
+	}
+	a := d.Advanced["acme-c"]
+	a.QuorumOverride = true
+	a.QuorumEntries = stellarcfg.RenderQuorumEntries(hds[:3], keptVals) +
+		"\n[[HOME_DOMAINS]]\nHOME_DOMAIN=\"acme.example\"\nQUALITY=\"LOW\"\n" // own org: ignored
+	d.Advanced["acme-c"] = a
+	p := BuildPlan(in)
+	if b := blocking(p); len(b) != 0 {
+		t.Fatalf("blocking: %v", b)
+	}
+	c, other := p.Hosts[2], p.Hosts[0]
+	if !c.OwnQuorum || other.OwnQuorum {
+		t.Fatal("override flags wrong")
+	}
+	if len(c.Config.Validators) != 2+9 || len(other.Config.Validators) != 2+30 {
+		t.Errorf("validators: override %d, others %d", len(c.Config.Validators), len(other.Config.Validators))
+	}
+	if c.Config.HomeDomains[0] != (stellarcfg.HomeDomain{HomeDomain: "acme.example", Quality: stellarcfg.High}) || len(c.Config.HomeDomains) != 4 {
+		t.Errorf("own org not kept as configured: %+v", c.Config.HomeDomains)
+	}
+	if !strings.Contains(strings.Join(c.Preview, "\n"), "3 of 4") || strings.Join(c.Preview, "") == strings.Join(other.Preview, "") {
+		t.Errorf("override preview:\n%s", strings.Join(c.Preview, "\n"))
+	}
+	if strings.Join(p.Preview, "") != strings.Join(other.Preview, "") {
+		t.Error("org preview taken from the overriding host")
+	}
+
+	// Override problems belong to the Advanced step.
+	a.QuorumEntries = "[[VALIDATORS]\n"
+	d.Advanced["acme-c"] = a
+	p = BuildPlan(in)
+	found := false
+	for _, i := range p.IssuesFor(StepAdvanced) {
+		found = found || (i.Rule == "override-parse" && i.Host == "acme-c")
+	}
+	if !found {
+		t.Errorf("parse error not at Advanced: %v", p.Issues)
+	}
+	a.QuorumEntries = "[[HOME_DOMAINS]]\nHOME_DOMAIN=\"x.example\"\nQUALITY=\"HIGH\"\n[[VALIDATORS]]\nNAME=\"x1\"\nHOME_DOMAIN=\"x.example\"\nPUBLIC_KEY=\"" + keyC + "\"\nHISTORY=\"curl -sf https://h/{0} -o {1}\"\n"
+	d.Advanced["acme-c"] = a
+	p = BuildPlan(in)
+	found = false
+	for _, i := range p.IssuesFor(StepAdvanced) {
+		found = found || (i.Rule == "redundancy" && i.Host == "acme-c")
+	}
+	if !found {
+		t.Errorf("quorum rule for the override not at Advanced: %v", p.Issues)
+	}
+	for _, i := range p.IssuesFor(StepQuorum) {
+		if i.Host == "acme-c" {
+			t.Errorf("override issue shown at Quorum: %v", i)
+		}
 	}
 }

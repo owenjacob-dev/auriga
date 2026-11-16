@@ -30,7 +30,8 @@ type archiveFields struct {
 
 type advancedFields struct {
 	database, bucketDir, logFile, httpPort, peerPort, extraPeers string
-	preferQuorum                                                 bool
+	preferQuorum, quorumOverride                                 bool
+	quorumEntries                                                string
 }
 
 func notEmpty(what string) func(string) error {
@@ -246,7 +247,11 @@ func (m *Model) buildForm() *huh.Form {
 	case StepAdvanced:
 		for _, h := range d.Hosts {
 			a := d.Advanced[h]
-			af := &advancedFields{database: a.Database, bucketDir: a.BucketDir, logFile: a.LogFile, extraPeers: strings.Join(a.ExtraPeers, ", "), preferQuorum: a.PreferQuorum}
+			af := &advancedFields{database: a.Database, bucketDir: a.BucketDir, logFile: a.LogFile, extraPeers: strings.Join(a.ExtraPeers, ", "),
+				preferQuorum: a.PreferQuorum, quorumOverride: a.QuorumOverride, quorumEntries: a.QuorumEntries}
+			if af.quorumEntries == "" && m.plan != nil {
+				af.quorumEntries = OrgEntries(m.plan) // start from the org-wide set
+			}
 			if a.HTTPPort != 0 {
 				af.httpPort = strconv.Itoa(a.HTTPPort)
 			}
@@ -275,7 +280,17 @@ func (m *Model) buildForm() *huh.Form {
 				}
 				fields = append(fields, huh.NewNote().Title("Kept unchanged").Description(strings.Join(keys, ", ")))
 			}
-			groups = append(groups, huh.NewGroup(fields...).Title(h))
+			fields = append(fields, huh.NewConfirm().Title("Use a different quorum set for this host?").
+				Description("By default every host trusts the same orgs. This host's own org and siblings are always kept.").
+				Value(&af.quorumOverride))
+			groups = append(groups,
+				huh.NewGroup(fields...).Title(h),
+				huh.NewGroup(
+					huh.NewText().Title("Trusted orgs and validators for "+h).
+						Description("[[HOME_DOMAINS]] and [[VALIDATORS]] entries, starting from the org-wide set. Entries for "+d.HomeDomain+" are ignored.").
+						Value(&af.quorumEntries).Lines(max(6, m.rows-10)),
+				).Title(h+": own quorum set").WithHideFunc(func() bool { return !af.quorumOverride }),
+			)
 		}
 	}
 	form := huh.NewForm(groups...).WithShowHelp(true).WithShowErrors(true).WithTheme(huh.ThemeFunc(huh.ThemeBase))
@@ -314,7 +329,10 @@ func (m *Model) collect() {
 	}
 	for h, a := range m.fs.advanced {
 		in := AdvancedInput{Database: strings.TrimSpace(a.database), BucketDir: strings.TrimSpace(a.bucketDir),
-			LogFile: strings.TrimSpace(a.logFile), PreferQuorum: a.preferQuorum}
+			LogFile: strings.TrimSpace(a.logFile), PreferQuorum: a.preferQuorum, QuorumOverride: a.quorumOverride}
+		if a.quorumOverride {
+			in.QuorumEntries = a.quorumEntries
+		}
 		in.HTTPPort, _ = strconv.Atoi(a.httpPort)
 		in.PeerPort, _ = strconv.Atoi(a.peerPort)
 		for _, p := range strings.Split(a.extraPeers, ",") {

@@ -51,9 +51,28 @@ func TestWizardRendersLoadInStellarCore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if org.preset == presets.Pubnet {
+			// acme-c trusts only the first three Tier 1 orgs (per-host override).
+			keep := map[string]bool{}
+			for _, h := range p.HomeDomains[:3] {
+				keep[h.HomeDomain] = true
+			}
+			var vals []stellarcfg.Validator
+			for _, v := range p.Validators {
+				if keep[v.HomeDomain] {
+					vals = append(vals, v)
+				}
+			}
+			a := d.Advanced["acme-c"]
+			a.QuorumOverride, a.QuorumEntries = true, stellarcfg.RenderQuorumEntries(p.HomeDomains[:3], vals)
+			d.Advanced["acme-c"] = a
+		}
 		plan := wizard.BuildPlan(wizard.Input{Draft: d, Facts: facts, Preset: p, Render: stellarcfg.RenderOptions{Version: "itest", Time: time.Unix(0, 0)}})
 		if plan.Blocking(true) {
 			t.Fatalf("%s: blocking issues %v", org.name, plan.Issues)
+		}
+		if org.preset == presets.Pubnet && (!plan.Hosts[2].OwnQuorum || len(plan.Hosts[2].Config.Validators) != 11) {
+			t.Fatalf("override not applied: %d validators", len(plan.Hosts[2].Config.Validators))
 		}
 		for _, hp := range plan.Hosts {
 			text := seedMarker.ReplaceAllStringFunc(string(hp.Rendered), func(m string) string {

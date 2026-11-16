@@ -7,6 +7,7 @@
 │ [acme-a] acme-b  acme-c                                                      │
 │ new node · basic · import the pasted seed                                    │
 │ ◐ will run new-db: a new node needs its database initialised (a rollback ca… │
+│ quorum: 2 of 2  HIGH  (tolerates 0 failures)                                 │
 │ ◐ only 2 top-level entities; SDF recommends at least four                    │
 │ ◐ tolerates no failures (2 of 2 at the top); stellar-core needs UNSAFE_QUOR… │
 │                                                                              │
@@ -18,7 +19,6 @@
 │                                                                              │
 │ # Node identity                                                              │
 │ NODE_SEED = "<auriga-seed:import:GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONU… │
-│ NODE_IS_VALIDATOR = true                                                     │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ Step 8 of 8 · Review · draft saved after each step                           │
 └ tab next host  d diff  esc back  ? help  q quit ─────────────────────────────┘
