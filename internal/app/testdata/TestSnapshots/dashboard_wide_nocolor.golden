@@ -1,7 +1,7 @@
 ┌ auriga ──────────────────────────────────────────────────────────────────────────────────────────────── 14:02:11 UTC ┐
-│ HOST      STATE         LEDGER    AGE  PEERS  QUORUM   INT  PROTO  UPGRADE                                           │
+│   HOST        SSH           CORE     SERVICE   NODE KEY   FREE   NTP                                                 │
 │                                                                                                                      │
-│ No hosts yet.                                                                                                        │
+│ No hosts yet. Press a to add hosts from ~/.ssh/config.                                                               │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
@@ -27,4 +27,4 @@
 │                                                                                                                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ No hosts in the inventory                                                                                            │
-└ ? help  q quit ──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+└ a add  ⏎ detail  r refresh  x remove  ? help  q quit ────────────────────────────────────────────────────────────────┘

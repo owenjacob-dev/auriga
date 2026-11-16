@@ -581,3 +581,25 @@ func backoff(n int, lo, hi time.Duration) time.Duration {
 	jitter := 0.8 + 0.4*rand.Float64() //nolint:gosec // jitter, not security
 	return time.Duration(float64(d) * jitter)
 }
+
+// PromptAnswer is what the UI answered to a PromptEvent.
+type PromptAnswer struct {
+	HostKey   HostKeyDecision
+	Secret    *secret.Buffer
+	Cancelled bool
+}
+
+// NewPromptForTest returns e wired to a reply channel and a function that
+// reports the UI's answer (or ok=false if none yet). It exists so UI tests
+// can play the pool's part.
+func NewPromptForTest(e PromptEvent) (PromptEvent, func() (PromptAnswer, bool)) {
+	e.reply = make(chan promptAnswer, 1)
+	return e, func() (PromptAnswer, bool) {
+		select {
+		case a := <-e.reply:
+			return PromptAnswer{HostKey: a.decision, Secret: a.pass, Cancelled: a.err != nil}, true
+		default:
+			return PromptAnswer{}, false
+		}
+	}
+}

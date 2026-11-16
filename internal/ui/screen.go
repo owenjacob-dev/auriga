@@ -20,6 +20,8 @@ type Context struct {
 	// Cols and Rows are the size of the body area inside the app frame.
 	Cols, Rows int
 	Now        time.Time
+	// Fleet is the current host data; never nil when the app runs.
+	Fleet *Fleet
 }
 
 // Layout is a screen's contribution to the app frame. The root model draws
@@ -37,7 +39,8 @@ type Layout struct {
 type Screen interface {
 	// Init returns the screen's first command, if any.
 	Init() tea.Cmd
-	// Update handles a message the root model did not consume.
+	// Update handles a message the root model did not consume. Keys arrive
+	// here too, including esc; a screen closes itself by returning Emit(CloseMsg{}).
 	Update(msg tea.Msg) (Screen, tea.Cmd)
 	// View renders the screen for one frame.
 	View(ctx Context) Layout

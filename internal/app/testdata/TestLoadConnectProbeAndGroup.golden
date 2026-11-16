@@ -1,0 +1,24 @@
+┌ auriga · org acme.org · pubnet ──────────────────────────────── 14:02:11 UTC ┐
+│   HOST        SSH           CORE     SERVICE   NODE KEY   FREE   NTP         │
+│ ● acme-a      connected     30.0.0   active    GBRP…OX2H  120G   yes         │
+│ ◐ acme-b      connected     30.0.0   active    GAB2…QZ6Q  5G     yes         │
+│ ○ acme-c      auth failed   —        —         —          —      —           │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · probed 0s ago                                       │
+└ a add  ⏎ detail  r refresh  x remove  ? help  q quit ────────────────────────┘

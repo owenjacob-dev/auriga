@@ -1,0 +1,24 @@
+┌ auriga · 2 hosts ────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ◐ Unknown host key  (1 more waiting)                                         │
+│                                                                              │
+│ a (10.0.0.1:22) presented a host key that is not in known_hosts:             │
+│                                                                              │
+│   ssh-ed25519 SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG             │
+│                                                                              │
+│ Check it against the host before trusting it, for example on the host:       │
+│   ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub                           │
+│                                                                              │
+│ Trust and save appends it to /home/op/.ssh/known_hosts.                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ a · ssh connecting                                                           │
+└ t trust this session  s trust and save  r reject ────────────────────────────┘
