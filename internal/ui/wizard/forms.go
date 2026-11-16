@@ -190,8 +190,21 @@ func (m *Model) buildForm() *huh.Form {
 			Description("Paste [[HOME_DOMAINS]] and [[VALIDATORS]] entries.").Value(&d.Quorum.Manual).Lines(4))
 		groups = append(groups, huh.NewGroup(fields...))
 		if m.needsConsent() {
-			consent := []huh.Field{huh.NewConfirm().Title("Accept a quorum set that tolerates no failures?").
-				Description("stellar-core starts only with UNSAFE_QUORUM=true. If any one entity fails, this node stops closing ledgers.").
+			rules := m.consentRules()
+			title := "Accept a quorum set stellar-core calls unsafe?"
+			var why []string
+			if rules["zero-tolerance"] {
+				title = "Accept a quorum set that tolerates no failures?"
+				why = append(why, "If any one entity fails, this node stops closing ledgers.")
+			}
+			if rules["archives-blocking"] {
+				if !rules["zero-tolerance"] {
+					title = "Accept a quorum set that can form without archives?"
+				}
+				why = append(why, "A quorum can form without any validator that publishes a history archive, so nodes that fall behind may not catch up.")
+			}
+			consent := []huh.Field{huh.NewConfirm().Title(title).
+				Description("stellar-core starts only with UNSAFE_QUORUM=true. " + strings.Join(why, " ")).
 				Value(&d.Quorum.UnsafeConsent)}
 			if d.Network == "pubnet" {
 				consent = append(consent, huh.NewInput().Title("Type pubnet to confirm").Value(&m.fs.pubnet).Validate(func(s string) error {

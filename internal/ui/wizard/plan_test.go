@@ -441,3 +441,30 @@ func TestPrivateTestNetwork(t *testing.T) {
 		}
 	}
 }
+
+// An org of Basic validators with nothing outside it has no archive in any
+// quorum: stellar-core refuses it without UNSAFE_QUORUM (found deploying to
+// the integration stack; fixture L in internal/quorum/testdata/core30).
+func TestNoArchivesNeedsConsent(t *testing.T) {
+	d, f := testnetBasic()
+	d.Quorum.UsePreset, d.Quorum.UnsafeConsent = false, false
+	d.Quorum.OwnQuality = "MEDIUM"
+	p := BuildPlan(Input{Draft: d, Facts: f, Render: renderOpt})
+	found := false
+	for _, i := range p.Issues {
+		found = found || (i.Rule == "archives-blocking" && i.Severity == quorum.NeedsConsent)
+	}
+	if !found || !p.Blocking(false) {
+		t.Fatalf("no consent asked: %v", p.Issues)
+	}
+	d.Quorum.UnsafeConsent = true
+	p = BuildPlan(Input{Draft: d, Facts: f, Render: renderOpt})
+	if p.Blocking(true) {
+		t.Fatalf("still blocked after consent: %v", p.Issues)
+	}
+	for _, hp := range p.Hosts {
+		if hp.Config.UnsafeQuorum == nil || !*hp.Config.UnsafeQuorum {
+			t.Errorf("%s: UNSAFE_QUORUM not written after consent", hp.Alias)
+		}
+	}
+}

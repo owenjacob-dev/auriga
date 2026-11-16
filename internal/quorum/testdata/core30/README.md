@@ -6,3 +6,7 @@ integration image (stellar-core 30.0.0 from apt.stellar.org) on 16 Nov 2026.
 message, and the QUORUM_SET it generated. `internal/quorum` must produce the
 same structure and reach the same verdict. Seeds are public test vectors,
 redacted here as the read-config helper would.
+
+Fixtures L to N were added on 16 Nov 2026 the same way, for stellar-core's
+rule that validators with an archive must be in every quorum ("SCP unsafe"
+unless UNSAFE_QUORUM=true), found by deploying to the integration stack.

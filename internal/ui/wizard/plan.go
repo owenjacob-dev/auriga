@@ -283,6 +283,10 @@ func BuildPlan(in Input) *Plan {
 	return p
 }
 
+// ConsentRule reports whether a quorum rule is one stellar-core accepts
+// only with UNSAFE_QUORUM=true, which the operator can consent to.
+func ConsentRule(rule string) bool { return rule == "zero-tolerance" || rule == "archives-blocking" }
+
 // ParseQuorumEntries reads pasted [[HOME_DOMAINS]] and [[VALIDATORS]]
 // entries; anything else is refused. Empty text gives nothing.
 func ParseQuorumEntries(text string) ([]stellarcfg.HomeDomain, []stellarcfg.Validator, error) {
@@ -476,7 +480,7 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 	}
 	c.UnsafeQuorum = nil
 	for _, qi := range quorum.Check(&c, self, quorum.CheckOptions{Running: running}) {
-		if qi.Rule == "zero-tolerance" && d.Quorum.UnsafeConsent {
+		if ConsentRule(qi.Rule) && d.Quorum.UnsafeConsent {
 			c.UnsafeQuorum = stellarcfg.Ptr(true)
 			qi.Severity = quorum.Warn
 		}

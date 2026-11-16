@@ -36,6 +36,31 @@ type Set struct {
 	Label string
 }
 
+// VBlocking reports whether the nodes in for form a v-blocking set: one
+// that every quorum slice intersects, as stellar-core's
+// LocalNode::isVBlocking computes it.
+func (s *Set) VBlocking(in func(Node) bool) bool {
+	if s == nil || s.Threshold == 0 {
+		return false
+	}
+	left := 1 + s.Size() - s.Threshold
+	for _, n := range s.Nodes {
+		if in(n) {
+			if left--; left <= 0 {
+				return true
+			}
+		}
+	}
+	for _, inner := range s.Inner {
+		if inner.VBlocking(in) {
+			if left--; left <= 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Size is the number of members (validators and inner sets).
 func (s *Set) Size() int { return len(s.Nodes) + len(s.Inner) }
 

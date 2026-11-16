@@ -224,14 +224,18 @@ func (m *Model) replan() {
 	}
 }
 
-func (m *Model) needsConsent() bool {
+func (m *Model) needsConsent() bool { return len(m.consentRules()) > 0 }
+
+// consentRules lists the rules that need UNSAFE_QUORUM in the current plan.
+func (m *Model) consentRules() map[string]bool {
 	m.replan()
+	out := map[string]bool{}
 	for _, i := range m.plan.Issues {
-		if i.Rule == "zero-tolerance" {
-			return true
+		if ConsentRule(i.Rule) {
+			out[i.Rule] = true
 		}
 	}
-	return false
+	return out
 }
 
 // hostsChangingNetwork lists adopted hosts whose config is on another
