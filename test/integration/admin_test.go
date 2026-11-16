@@ -14,13 +14,14 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/secret"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/xdg"
 )
 
 // liveBackend runs app.LiveBackend against the stack, answering prompts
 // (sudo password for it-b) like an operator.
 func liveBackend(t *testing.T) *app.LiveBackend {
 	h := NewHome(t, true)
-	b := app.NewLiveBackend(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath}, "", t.TempDir(), slog.New(slog.DiscardHandler))
+	b := app.NewLiveBackend(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath}, "", xdg.Dirs{Config: t.TempDir(), State: t.TempDir()}, slog.New(slog.DiscardHandler))
 	t.Cleanup(b.Close)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

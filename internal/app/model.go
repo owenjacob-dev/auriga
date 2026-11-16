@@ -16,6 +16,7 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/ui"
 	"github.com/owenjacob-dev/auriga/internal/ui/components"
 	"github.com/owenjacob-dev/auriga/internal/ui/dashboard"
+	"github.com/owenjacob-dev/auriga/internal/ui/deployview"
 	"github.com/owenjacob-dev/auriga/internal/ui/hostdetail"
 	"github.com/owenjacob-dev/auriga/internal/ui/hostpicker"
 	"github.com/owenjacob-dev/auriga/internal/ui/theme"
@@ -76,6 +77,8 @@ type Model struct {
 	probeSeq  int
 	probing   map[string]int // alias -> seq of the probe in flight
 	pollGen   map[string]int // alias -> current poll cycle
+	pending   *pendingDeploy // reviewed, waiting for confirmation
+	run       *deployRun     // running
 	// themeFixed is set when settings.toml chooses dark or light, so the
 	// terminal's background answer is ignored.
 	themeFixed bool
@@ -146,6 +149,10 @@ func (m *Model) Push(s ui.Screen) tea.Cmd {
 // and any typed but unsent secret cleared.
 func (m Model) Close() {
 	m.secretIn.Clear()
+	m.dropPending()
+	if m.run != nil {
+		m.run.cancel()
+	}
 	for _, s := range m.stack {
 		if c, ok := s.(interface{ Close() }); ok {
 			c.Close()
@@ -212,6 +219,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case backendDoneMsg:
 		return m, nil
 	case ui.CloseMsg:
+		if _, ok := m.top().(*deployview.Model); ok && m.run == nil {
+			m.dropPending()
+		}
 		if c, ok := m.top().(interface{ Close() }); ok {
 			c.Close() // wipes secrets a screen holds, e.g. imported seeds
 		}
@@ -230,6 +240,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 	}
 	if next, cmd, handled := m.handlePoll(msg); handled {
+		return next, cmd
+	}
+	if next, cmd, handled := m.handleDeploy(msg); handled {
 		return next, cmd
 	}
 	if next, cmd, handled := m.handleWizard(msg); handled {

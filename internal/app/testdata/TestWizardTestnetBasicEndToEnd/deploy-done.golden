@@ -1,0 +1,24 @@
+┌ auriga · deploy acme · testnet ──────────────────────────────── 14:02:11 UTC ┐
+│ ● acme-a deployed  ● acme-b deployed  [● acme-c deployed]                    │
+│                                                                              │
+│   ● ok      preflight unit active                                            │
+│   ● ok      stage     sha256 aaaaaaaaaaaa                                    │
+│   ● ok      verify    matches the review                                     │
+│   ● ok      backup    /etc/stellar/stellar-core.cfg.auriga-20261116T120000Z… │
+│   ● ok      install   sha256 aaaaaaaaaaaa                                    │
+│   ● ok      init      new-db                                                 │
+│   ● ok      restart   unit active                                            │
+│   ● ok      health    info answers: Synced!                                  │
+│   ● ok      sync      Synced! at ledger 4242                                 │
+│   ● ok      quorum    intersection ok                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Finished: 3 of 3 deployed. Every step is in the audit log.                   │
+└ tab next host  esc close  ? help  q quit ────────────────────────────────────┘

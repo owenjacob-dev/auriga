@@ -3,6 +3,7 @@ package wizard
 import (
 	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/remote"
+	"github.com/owenjacob-dev/auriga/internal/secret"
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 )
 
@@ -51,3 +52,15 @@ type (
 		Err   error
 	}
 )
+
+// DeployMsg asks the root model to open the deploy screen for the reviewed
+// plan.
+type DeployMsg struct {
+	Plan *Plan
+	// Seeds are copies of the imported seeds, by host; the receiver owns
+	// and zeroes them.
+	Seeds map[string]*secret.Buffer
+	// Replan rebuilds the plan with the public keys of seeds generated on
+	// hosts. It is pure and safe to call from another goroutine.
+	Replan func(generated map[string]string) *Plan
+}

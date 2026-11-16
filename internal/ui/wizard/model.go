@@ -114,6 +114,7 @@ var (
 	kRefresh = key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "refresh preset"))
 	kHost    = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next host"))
 	kDiff    = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
+	kDeploy  = key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "deploy"))
 	kYes     = key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "save"))
 	kNo      = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "discard"))
 )
@@ -122,6 +123,9 @@ var (
 func (m *Model) Keys() []key.Binding {
 	switch m.phase {
 	case phaseReview:
+		if m.plan != nil && len(m.plan.Hosts) > 0 && !m.plan.Blocking(m.draft.Quorum.UnsafeConsent) {
+			return []key.Binding{kDeploy, kHost, kDiff, kBack}
+		}
 		return []key.Binding{kHost, kDiff, kBack}
 	case phaseRefresh:
 		return []key.Binding{kYes, kNo}
@@ -497,6 +501,8 @@ func (m *Model) reviewKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "d":
 		m.reviewDiff = !m.reviewDiff
 		m.scroll = 0
+	case "D":
+		return m.deploy()
 	case "down", "j":
 		m.scroll++
 	case "up", "k":
@@ -507,6 +513,31 @@ func (m *Model) reviewKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.scroll = max(0, m.scroll-10)
 	}
 	return nil
+}
+
+// deploy hands the reviewed plan to the deploy screen. Nothing on a host
+// has changed until the operator confirms there.
+func (m *Model) deploy() tea.Cmd {
+	m.replan()
+	if m.plan == nil || len(m.plan.Hosts) == 0 || m.plan.Blocking(m.draft.Quorum.UnsafeConsent) {
+		return nil
+	}
+	seeds := map[string]*secret.Buffer{}
+	for h, b := range m.seeds {
+		if m.draft.Keys[h].Mode == KeyImport && b.Len() > 0 {
+			seeds[h] = secret.FromBytes(append([]byte(nil), b.Bytes()...))
+		}
+	}
+	in := Input{Draft: m.draft.Clone(), Facts: m.facts(), Render: stellarcfg.RenderOptions{Version: m.version, Time: m.now()}}
+	if m.draft.Quorum.UsePreset {
+		in.Preset = m.preset
+	}
+	replan := func(generated map[string]string) *Plan {
+		in := in
+		in.Generated = generated
+		return BuildPlan(in)
+	}
+	return ui.Emit(DeployMsg{Plan: replan(nil), Seeds: seeds, Replan: replan})
 }
 
 // View implements ui.Screen.
@@ -694,7 +725,7 @@ func (m *Model) reviewView(t theme.Theme, ctx ui.Context) []string {
 		}
 	} else {
 		out = append(out, t.OK.Render(fmt.Sprintf("● Ready: %d hosts on %s. Nothing has changed on any host.", len(p.Hosts), p.Network)))
-		out = append(out, t.Muted.Render("The deploy flow (stage, verify, back up, install, restart) arrives with the next milestone."))
+		out = append(out, t.Muted.Render("D opens the deploy: it lists every step and asks before changing anything."))
 	}
 	hp := p.Hosts[m.reviewHost%len(p.Hosts)]
 	var tabs []string

@@ -49,7 +49,12 @@ type Target struct {
 	// Running is true when the node runs now; new nodes may deploy at once
 	// on any network.
 	Running bool
+	// HTTPPort is the admin port in the render, used by the gates.
+	HTTPPort int
 }
+
+// SeedSourceOf is where the stage helper takes t's seed from.
+func SeedSourceOf(t Target) remote.SeedSource { return t.source() }
 
 func (t Target) source() remote.SeedSource {
 	if t.Seed == nil {

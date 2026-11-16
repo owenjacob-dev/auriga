@@ -10,13 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/owenjacob-dev/auriga/internal/audit"
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
+	"github.com/owenjacob-dev/auriga/internal/deploy"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
+	"github.com/owenjacob-dev/auriga/internal/xdg"
 )
 
 // Backend is everything the UI needs from the outside world. All methods
@@ -52,8 +55,18 @@ type Backend interface {
 	// only when the operator asks.
 	FetchPreset(ctx context.Context, n presets.Network) ([]byte, error)
 	CheckArchive(ctx context.Context, alias string, spec stellarcfg.ArchiveSpec, publish bool) (remote.ArchiveCheck, error)
+
+	// Deploy support.
+	DeployOps() deploy.Ops
+	AuditLog() AuditLog
 	// Close disconnects everything and zeroes cached secrets.
 	Close()
+}
+
+// AuditLog appends to and reads the audit log; *audit.Log implements it.
+type AuditLog interface {
+	Append(audit.Entry) error
+	Read() ([]audit.Entry, int, error)
 }
 
 // LiveBackend is the real Backend: an SSH pool, the helper runner, the
@@ -64,13 +77,14 @@ type LiveBackend struct {
 	runner    *remote.Runner
 	resolver  *sshx.Resolver
 	configDir string
+	audit     *audit.Log
 
 	adminMu sync.Mutex
 	admin   map[adminKey]*corehttp.Client
 }
 
 // NewLiveBackend builds the backend for this process.
-func NewLiveBackend(env sshx.Env, agentSock, configDir string, log *slog.Logger) *LiveBackend {
+func NewLiveBackend(env sshx.Env, agentSock string, dirs xdg.Dirs, log *slog.Logger) *LiveBackend {
 	resolver := sshx.NewResolver(env)
 	pool := sshx.NewPool(sshx.PoolConfig{Resolver: resolver, AgentSock: agentSock, Log: log})
 	return &LiveBackend{
@@ -78,7 +92,8 @@ func NewLiveBackend(env sshx.Env, agentSock, configDir string, log *slog.Logger)
 		pool:      pool,
 		runner:    remote.NewRunner(pool, pool),
 		resolver:  resolver,
-		configDir: configDir,
+		configDir: dirs.Config,
+		audit:     audit.Open(dirs.State),
 		admin:     map[adminKey]*corehttp.Client{},
 	}
 }
@@ -169,6 +184,10 @@ func (b *LiveBackend) FetchPreset(ctx context.Context, n presets.Network) ([]byt
 func (b *LiveBackend) CheckArchive(ctx context.Context, alias string, spec stellarcfg.ArchiveSpec, publish bool) (remote.ArchiveCheck, error) {
 	return b.runner.CheckArchive(ctx, alias, spec.WellKnownURL(), spec.Binaries(publish))
 }
+
+func (b *LiveBackend) DeployOps() deploy.Ops { return liveOps{b} }
+
+func (b *LiveBackend) AuditLog() AuditLog { return b.audit }
 
 func (b *LiveBackend) Close() {
 	b.runner.Close()

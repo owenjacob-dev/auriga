@@ -42,6 +42,10 @@ type HostView struct {
 	PollFailures   int    // consecutive failures
 	NotSyncedSince time.Time
 	Transport      string // "ssh tunnel" or "on host (curl)" …
+
+	// Deploying is set while a deploy runs on the host; dashboard polling
+	// pauses (the deploy checks the host itself).
+	Deploying bool
 }
 
 // Fleet is the ordered set of hosts in the inventory.

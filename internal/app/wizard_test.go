@@ -189,6 +189,8 @@ func TestWizardTestnetBasicEndToEnd(t *testing.T) {
 		t.Errorf("override not saved: %+v", d.Advanced)
 	}
 
+	m = deployFromReview(t, m, b, plan)
+
 	// Leaving the wizard wipes the seeds.
 	seeds := w.Seeds()
 	m = keys(t, m, "esc", "esc", "esc", "esc", "esc", "esc", "esc")

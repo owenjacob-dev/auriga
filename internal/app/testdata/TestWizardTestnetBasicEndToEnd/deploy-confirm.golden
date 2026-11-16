@@ -1,0 +1,24 @@
+┌ auriga · deploy acme · testnet ──────────────────────────────── 14:02:11 UTC ┐
+│ Deploy acme to 3 host(s) on testnet                                          │
+│ Order: one at a time; each host must reach Synced! before the next starts    │
+│                                                                              │
+│   acme-a         new node · the pasted seed                                  │
+│     ◐ new-db: a rollback cannot undo this                                    │
+│   acme-b         new node · the pasted seed                                  │
+│     ◐ new-db: a rollback cannot undo this                                    │
+│   acme-c         new node · the pasted seed                                  │
+│     ◐ new-db: a rollback cannot undo this                                    │
+│                                                                              │
+│ Per host: preflight, stage, verify, back up, install, init, restart,         │
+│ then 60 s to come back healthy, or the backup is restored.                   │
+│ Init steps run with the service stopped.                                     │
+│                                                                              │
+│ Press ⏎ to deploy.                                                           │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Nothing has changed on any host yet.                                         │
+└ ⏎ deploy  tab one at a time / all at once  esc back  ? help  q quit ─────────┘

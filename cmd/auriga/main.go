@@ -89,7 +89,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		log.Info("auriga starting", "version", version)
 	}
 
-	backend := app.NewLiveBackend(sshx.DefaultEnv(), os.Getenv("SSH_AUTH_SOCK"), dirs.Config, log)
+	backend := app.NewLiveBackend(sshx.DefaultEnv(), os.Getenv("SSH_AUTH_SOCK"), dirs, log)
 	crash := app.NewCrash(nil)
 	model := app.New(app.Options{
 		Version: version,

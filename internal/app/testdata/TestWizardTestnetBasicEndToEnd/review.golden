@@ -2,7 +2,7 @@
 │ 1 ✓ 2 ✓ 3 ✓ 4 ✓ 5 ✓ 6 – 7 ✓ [8 Review]                                       │
 │                                                                              │
 │ ● Ready: 3 hosts on testnet. Nothing has changed on any host.                │
-│ The deploy flow (stage, verify, back up, install, restart) arrives with the… │
+│ D opens the deploy: it lists every step and asks before changing anything.   │
 │                                                                              │
 │ [acme-a] acme-b  acme-c                                                      │
 │ new node · basic · import the pasted seed                                    │
@@ -21,4 +21,4 @@
 │ NODE_SEED = "<auriga-seed:import:GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONU… │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ Step 8 of 8 · Review · draft saved after each step                           │
-└ tab next host  d diff  esc back  ? help  q quit ─────────────────────────────┘
+└ D deploy  tab next host  d diff  esc back  ? help  q quit ───────────────────┘

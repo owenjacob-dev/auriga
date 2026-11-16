@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
+	"github.com/owenjacob-dev/auriga/internal/deploy"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/remote"
@@ -53,6 +54,8 @@ type fakeBackend struct {
 	archiveChecks  map[string]remote.ArchiveCheck
 	adminErr       map[string]error
 	adminCalls     []string
+	ops            *scriptedOps
+	audit          *memAuditLog
 }
 
 func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
@@ -61,8 +64,12 @@ func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
 		facts: map[string]remote.ProbeFacts{}, configs: map[string]remote.RedactedConfig{}, probeErr: map[string]error{},
 		admin: map[string]map[string][]byte{}, adminErr: map[string]error{}, backups: map[string][]remote.Backup{},
 		drafts: map[string]*wizard.Draft{}, archiveChecks: map[string]remote.ArchiveCheck{},
+		ops: newScriptedOps(), audit: &memAuditLog{},
 	}
 }
+
+func (f *fakeBackend) DeployOps() deploy.Ops { return f.ops }
+func (f *fakeBackend) AuditLog() AuditLog    { return f.audit }
 
 func (f *fakeBackend) Events() <-chan sshx.Event { return f.events }
 func (f *fakeBackend) ListAliases() ([]string, string, error) {
