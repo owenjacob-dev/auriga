@@ -288,7 +288,8 @@ type ExitError struct {
 
 func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Status) }
 
-// Exec runs cmd in a new session with the given stdio and waits for it.
+// Exec runs cmd in a new session with the given stdio and waits for it. It
+// returns when the command exits, even if stdin has not reached EOF.
 // When ctx ends the session is closed (the remote process gets SIGHUP when
 // sshd notices). A non-zero exit is reported as *ExitError.
 func (c *Conn) Exec(ctx context.Context, cmd string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -297,9 +298,23 @@ func (c *Conn) Exec(ctx context.Context, cmd string, stdin io.Reader, stdout, st
 		return fmt.Errorf("open session: %w", err)
 	}
 	defer sess.Close() //nolint:errcheck
-	sess.Stdin, sess.Stdout, sess.Stderr = stdin, stdout, stderr
+	sess.Stdout, sess.Stderr = stdout, stderr
+	// Copy stdin ourselves: Session.Wait would otherwise wait for the copy,
+	// and a stdin that only closes after the command exits would deadlock.
+	var in io.WriteCloser
+	if stdin != nil {
+		if in, err = sess.StdinPipe(); err != nil {
+			return fmt.Errorf("stdin: %w", err)
+		}
+	}
 	if err := sess.Start(cmd); err != nil {
 		return fmt.Errorf("start: %w", err)
+	}
+	if in != nil {
+		go func() {
+			io.Copy(in, stdin) //nolint:errcheck,gosec // the command's exit status reports failures
+			in.Close()         //nolint:errcheck,gosec
+		}()
 	}
 	done := make(chan error, 1)
 	go func() { done <- sess.Wait() }()
