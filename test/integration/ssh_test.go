@@ -109,7 +109,7 @@ func TestThreeHostsConnectAndProbe(t *testing.T) {
 	defer r.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	want := map[string]string{"it-a": AddressA, "it-b": AddressB, "it-c": AddressA}
+	want := map[string]string{"it-a": AddressA, "it-b": AddressB, "it-c": AddressC}
 	var wg sync.WaitGroup
 	for _, a := range targets {
 		wg.Add(1)
@@ -120,7 +120,8 @@ func TestThreeHostsConnectAndProbe(t *testing.T) {
 				t.Errorf("%s probe: %v", a, err)
 				return
 			}
-			if !f.StellarUser || !f.CoreInstalled || !f.ConfigPresent || f.ConfigOwner != "root:stellar" || f.ConfigMode != "640" || f.HTTPPort != 11626 || f.DiskAvailKB <= 0 {
+			if !f.StellarUser || !f.CoreInstalled || !strings.HasPrefix(f.CoreVersion, "stellar-core 30.0.0") || f.ServiceActive != "active" ||
+				!f.ConfigPresent || f.ConfigOwner != "root:stellar" || f.ConfigMode != "640" || f.HTTPPort != 11626 || f.DiskAvailKB <= 0 {
 				t.Errorf("%s probe facts %+v", a, f)
 			}
 			rc, err := r.ReadConfig(ctx, a, remote.DefaultConfigPath)
@@ -128,7 +129,7 @@ func TestThreeHostsConnectAndProbe(t *testing.T) {
 				t.Errorf("%s read-config: %v", a, err)
 				return
 			}
-			if rc.PublicKey != want[a] || strings.Contains(string(rc.Text), SeedA) || strings.Contains(string(rc.Text), SeedB) {
+			if rc.PublicKey != want[a] || strings.Contains(string(rc.Text), SeedA) || strings.Contains(string(rc.Text), SeedB) || strings.Contains(string(rc.Text), SeedC) {
 				t.Errorf("%s: key %s, text:\n%s", a, rc.PublicKey, rc.Text)
 			}
 		}()

@@ -14,12 +14,15 @@ import (
 	"time"
 )
 
-// Public test vectors (internal/strkey); the hosts' configs use these seeds.
+// Public test vectors; the hosts' configs use these seeds (C is the raw
+// seed 0x07×32, derived with py-stellar-base).
 const (
 	SeedA    = "SDHOAMBNLGCE2MV5ZKIVZAQD3VCLGP53P3OBSBI6UN5L5XZI5TKHFQL4"
 	AddressA = "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H"
 	SeedB    = "SAAACAQDAQCQMBYIBEFAWDANBYHRAEISCMKBKFQXDAMRUGY4DUPB6NKI"
 	AddressB = "GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q"
+	SeedC    = "SADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP54X"
+	AddressC = "GDVEU3DD4KOFECV66VIHWEZOYX4ZKR3WV27L464SIIPOU2IUI3JCZA57"
 	// SudoPassword is op's sudo password on host-b.
 	SudoPassword = "op-sudo-pw"
 )

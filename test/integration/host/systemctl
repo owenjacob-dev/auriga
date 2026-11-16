@@ -1,0 +1,15 @@
+#!/bin/sh
+# systemctl stand-in for containers without systemd: the stellar-core
+# "unit" is active while a stellar-core run process exists.
+running() { pgrep -x stellar-core >/dev/null 2>&1; }
+case "$1" in
+is-active)
+	if running; then echo active; else echo inactive; exit 3; fi ;;
+is-enabled) echo enabled ;;
+show)
+	case "$3" in
+	LoadState) echo loaded ;;
+	WorkingDirectory) echo /var/lib/stellar ;;
+	esac ;;
+*) echo "systemctl stand-in: $1 not supported" >&2; exit 1 ;;
+esac
