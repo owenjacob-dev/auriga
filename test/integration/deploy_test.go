@@ -194,3 +194,38 @@ func TestForcedBadConfigRollsBack(t *testing.T) {
 		t.Errorf("bad config still installed: %v", err)
 	}
 }
+
+// TestManualRestoreOnRealHost restores it-a's oldest backup (the config
+// written before any Auriga deploy) through steps 4 to 10, then checks
+// the host runs it and is Synced!.
+func TestManualRestoreOnRealHost(t *testing.T) {
+	b := liveBackend(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	backups, err := b.ListBackups(ctx, "it-a", remote.DefaultConfigPath)
+	if err != nil || len(backups) == 0 {
+		t.Skipf("no backups on it-a yet (%v); run with the deploy tests", err)
+	}
+	oldest := backups[len(backups)-1].Path
+	bk, err := b.ReadConfig(ctx, "it-a", oldest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg := deploy.Target{Alias: "it-a", ConfigPath: remote.DefaultConfigPath, Service: remote.DefaultService, HTTPPort: 11626,
+		Running: true, RestoreFrom: oldest, Expected: bk.Text}
+	log := &eventLog{}
+	c := deploy.New(b.DeployOps(), b.AuditLog(), []deploy.Target{tg}, itestOptions(), log.emit)
+	err = c.Run(ctx)
+	log.dump(t)
+	if err != nil || c.Outcomes()["it-a"] != deploy.Deployed {
+		t.Fatalf("%v %v", err, c.Outcomes())
+	}
+	want := []string{"it-a restore.stage ok", "it-a restore.backup ok", "it-a restore.install ok", "it-a restore.restart ok"}
+	if got := auditActions(t, b); !slices.Equal(got, want) {
+		t.Errorf("audit log %v", got)
+	}
+	now, err := b.ReadConfig(ctx, "it-a", remote.DefaultConfigPath)
+	if err != nil || !bytes.Equal(now.Text, bk.Text) || now.PublicKey != AddressA {
+		t.Errorf("it-a does not run the backup: %v", err)
+	}
+}

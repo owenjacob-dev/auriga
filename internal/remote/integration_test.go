@@ -5,6 +5,7 @@ package remote
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,5 +82,72 @@ func TestSecretProtocolOnRealHosts(t *testing.T) {
 	}
 	if p.asked != 1 {
 		t.Errorf("sudo password asked %d times, want once (host-b only)", p.asked)
+	}
+}
+
+// TestGenerateAndImportOnRealHosts runs gen-seed and both seed-bearing
+// stage modes with the real stellar-core, sudo and dash, on a scratch
+// config path so the running node is untouched.
+func TestGenerateAndImportOnRealHosts(t *testing.T) {
+	h := integration.NewHome(t, true)
+	d := &sshx.Dialer{
+		Resolver:    sshx.NewResolver(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath}),
+		Prompter:    noPrompts{},
+		Trust:       sshx.NewTrustStore(),
+		Passphrases: sshx.NewPassphraseCache(),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	for _, alias := range []string{"it-a", "it-b"} {
+		t.Run(alias, func(t *testing.T) {
+			c, err := d.Dial(ctx, alias)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			r := newDirectRunner(map[string]Conn{alias: c}, &passwordPrompter{})
+			dir := "/var/tmp/auriga-itest-seeds"
+			cfg := dir + "/stellar-core.cfg"
+			if _, err := r.runInline(ctx, alias, `rm -rf "$1" && mkdir -p "$1"`, []string{dir}, RunOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			defer r.runInline(context.Background(), alias, `rm -rf "$1"`, []string{dir}, RunOptions{})
+
+			pk, err := r.GenSeed(ctx, alias, cfg)
+			if err != nil || len(pk) != 56 || pk[0] != 'G' {
+				t.Fatalf("gen-seed %q %v", pk, err)
+			}
+			if again, err := r.GenSeed(ctx, alias, cfg); err != nil || again != pk {
+				t.Errorf("gen-seed again: %q %v", again, err)
+			}
+			render := func(mode, key string) []byte {
+				return []byte("NETWORK_PASSPHRASE = \"x\"\nNODE_SEED = \"<auriga-seed:" + mode + key + "> seeds\"\n")
+			}
+			st, err := r.Stage(ctx, alias, cfg, render("generate", ""), SeedFromPending, nil)
+			if err != nil || st.PublicKey != pk {
+				t.Fatalf("stage generate: %+v %v", st, err)
+			}
+			rc, err := r.ReadConfig(ctx, alias, cfg+StagedSuffix)
+			if err != nil || !strings.Contains(string(rc.Text), `NODE_SEED = "<redacted:`+pk+`> seeds"`) || rc.PublicKey != pk {
+				t.Errorf("staged: %+v %v", rc, err)
+			}
+			if _, err := r.Install(ctx, alias, cfg); err != nil {
+				t.Fatal(err)
+			}
+			if p, _ := r.Preflight(ctx, alias, cfg, DefaultService); p.PendingSeed || !p.ConfigPresent {
+				t.Errorf("after install: %+v", p)
+			}
+
+			// An operator paste, over stdin only.
+			paste := secret.FromBytes([]byte(integration.SeedC))
+			st, err = r.Stage(ctx, alias, cfg, render("import:", integration.AddressC), SeedFromStdin, paste)
+			if err != nil || st.PublicKey != integration.AddressC {
+				t.Fatalf("stage import: %+v %v", st, err)
+			}
+			// Keep: the seed the installed config holds (the generated one).
+			if st, err = r.Stage(ctx, alias, cfg, render("keep:", pk), SeedFromConfig, nil); err != nil || st.PublicKey != pk {
+				t.Fatalf("stage keep: %+v %v", st, err)
+			}
+		})
 	}
 }
