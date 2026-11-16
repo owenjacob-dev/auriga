@@ -99,3 +99,22 @@ func TestBackupsListedOnRealHost(t *testing.T) {
 		t.Errorf("backups %+v", list)
 	}
 }
+
+func TestArchiveCheckOnRealHost(t *testing.T) {
+	h := NewHome(t, true)
+	pool := sshx.NewPool(sshx.PoolConfig{Resolver: sshx.NewResolver(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath})})
+	t.Cleanup(pool.Close)
+	w := watch(t, pool, sshx.HostKeyReject)
+	pool.Add("it-a")
+	w.waitFor(t, "it-a", sshx.StateConnected, 30*time.Second)
+	r := remote.NewRunner(pool, pool)
+	defer r.Close()
+	// The admin port answers 404 for this path: the archive does not exist.
+	c, err := r.CheckArchive(context.Background(), "it-a", "http://127.0.0.1:11626/.well-known/stellar-history.json", []string{"curl", "cp", "aws"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Exists != "no" || len(c.Missing) != 1 || c.Missing[0] != "aws" {
+		t.Errorf("%+v", c)
+	}
+}
