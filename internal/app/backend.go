@@ -25,6 +25,7 @@ type Backend interface {
 	Probe(ctx context.Context, alias, configPath, service string) (remote.ProbeFacts, error)
 	ReadConfig(ctx context.Context, alias, configPath string) (remote.RedactedConfig, error)
 	LoadInventory() (*inventory.Inventory, error)
+	LoadSettings() (inventory.Settings, error)
 	SaveInventory(*inventory.Inventory) error
 	// AdminClient returns a client for the host's admin endpoint. It does no
 	// I/O until a request is made.
@@ -91,6 +92,10 @@ func (b *LiveBackend) ReadConfig(ctx context.Context, alias, configPath string) 
 
 func (b *LiveBackend) LoadInventory() (*inventory.Inventory, error) {
 	return inventory.Load(b.configDir)
+}
+
+func (b *LiveBackend) LoadSettings() (inventory.Settings, error) {
+	return inventory.LoadSettings(b.configDir)
 }
 
 func (b *LiveBackend) SaveInventory(inv *inventory.Inventory) error {

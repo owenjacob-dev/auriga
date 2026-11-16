@@ -1,0 +1,21 @@
+{
+  "info": {
+    "build": "stellar-core 30.0.0 (synthetic)",
+    "ledger": { "age": 4, "num": 61234567, "version": 29 },
+    "network": "Public Global Stellar Network ; September 2015",
+    "peers": { "authenticated_count": 11, "pending_count": 0 },
+    "protocol_version": 30,
+    "quorum": {
+      "node": "GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q",
+      "qset": { "agree": 18, "delayed": 0, "disagree": 0, "fail_at": 3, "ledger": 61234567, "missing": 0, "phase": "EXTERNALIZE" },
+      "transitive": {
+        "critical": [["GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H"]],
+        "intersection": false,
+        "last_check_ledger": 61234000,
+        "node_count": 24
+      }
+    },
+    "startedOn": "2026-11-15T08:00:00Z",
+    "state": "Synced!"
+  }
+}

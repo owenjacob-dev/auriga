@@ -67,7 +67,7 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 		return ui.Layout{Subtitle: m.alias, Body: []string{t.Muted.Render("This host is no longer in the inventory.")}}
 	}
 	label := func(k, v string) string { return t.Muted.Render(components.Fit(k, 18)) + v }
-	st := dashboard.Health(h)
+	st := dashboard.Health(h, dashboard.Rows(ctx.Fleet, ctx.Now)[h.Alias])
 	lines := []string{t.Style(st).Render(st.Symbol()+" "+st.Word()) + "  " + t.Header.Render(h.Alias)}
 	// Problems first, so they are visible without scrolling.
 	for _, w := range dashboard.Warnings(h) {

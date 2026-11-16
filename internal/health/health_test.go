@@ -163,3 +163,23 @@ func TestUpgradeLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestProblemsInWords(t *testing.T) {
+	r := eval(Sample{Alias: "a", Info: info(func(i *corehttp.Info) {
+		i.Ledger.Age = 12
+		i.Peers.Authenticated = 2
+		i.Quorum.Transitive.Intersection = ptr(false)
+	}), At: now})["a"]
+	want := []string{"quorum intersection lost", "last ledger closed 12s ago", "2 authenticated peers"}
+	if len(r.Problems) != len(want) {
+		t.Fatalf("problems %q", r.Problems)
+	}
+	for i := range want {
+		if r.Problems[i] != want[i] {
+			t.Errorf("problem %d = %q, want %q", i, r.Problems[i], want[i])
+		}
+	}
+	if p := eval(Sample{Alias: "a", Info: info(nil), At: now})["a"].Problems; len(p) != 0 {
+		t.Errorf("healthy host has problems %q", p)
+	}
+}

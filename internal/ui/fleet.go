@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
 )
@@ -26,6 +27,15 @@ type HostView struct {
 
 	HomeDomain string // from the config, when it parses
 	Network    string // "testnet", "pubnet" or ""
+
+	// Admin endpoint polling.
+	Info           *corehttp.Info // last successful info; kept when polls fail
+	InfoRaw        []byte         // its JSON, for the Info tab and copy
+	InfoAt         time.Time
+	InfoErr        string // last poll error, "" after a success
+	PollFailures   int    // consecutive failures
+	NotSyncedSince time.Time
+	Transport      string // "ssh tunnel" or "on host (curl)" …
 }
 
 // Fleet is the ordered set of hosts in the inventory.
@@ -35,6 +45,10 @@ type Fleet struct {
 	ResolverWarning string
 	// Flash is a one-line message for the status bar (e.g. a save error).
 	Flash string
+	// Paused is true while polling is paused (p on the dashboard).
+	Paused bool
+	// PollInterval is the configured poll interval.
+	PollInterval time.Duration
 }
 
 // Host returns the host with alias, or nil.
@@ -74,6 +88,35 @@ type (
 	}
 	// CloseMsg closes the screen that returned it.
 	CloseMsg struct{}
+	// TogglePauseMsg pauses or resumes polling.
+	TogglePauseMsg struct{}
+	// FetchMsg asks for one admin view of a host (host detail tabs).
+	FetchMsg struct {
+		Alias string
+		View  AdminView
+	}
+	// FetchedMsg carries a FetchMsg's result back to the screen.
+	FetchedMsg struct {
+		Alias     string
+		View      AdminView
+		Raw       []byte
+		Quorum    *corehttp.QuorumResponse
+		Peers     *corehttp.PeersResponse
+		Upgrades  corehttp.UpgradesResponse
+		Err       error
+		Transport string
+		At        time.Time
+	}
+)
+
+// AdminView names an on-demand admin request.
+type AdminView int
+
+const (
+	ViewQuorum AdminView = iota
+	ViewQuorumTransitive
+	ViewPeers
+	ViewUpgrades
 )
 
 // Emit wraps a message as a command.

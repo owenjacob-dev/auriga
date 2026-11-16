@@ -84,6 +84,10 @@ func (f *fakeBackend) LoadInventory() (*inventory.Inventory, error) {
 	}
 	return f.inv, nil
 }
+func (f *fakeBackend) LoadSettings() (inventory.Settings, error) {
+	return inventory.DefaultSettings(), nil
+}
+
 func (f *fakeBackend) SaveInventory(inv *inventory.Inventory) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

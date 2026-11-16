@@ -66,6 +66,9 @@ type Row struct {
 	IntersectionLost bool
 	// Overall is the worst level among the cells.
 	Overall Level
+	// Problems explains, in words, every cell that is not OK, worst first,
+	// so status never depends on colour alone.
+	Problems []string
 }
 
 var dash = Cell{Text: "—"}
@@ -190,9 +193,62 @@ func Evaluate(samples []Sample, now time.Time, interval time.Duration) map[strin
 				r.Overall = c.Level
 			}
 		}
+		r.Problems = problems(r, i, s, now, maxLedger[s.network()])
+		if stale {
+			r.Problems = append([]string{"values are stale: no successful poll in " + now.Sub(s.At).Round(time.Second).String()}, r.Problems...)
+		}
 		out[s.Alias] = r
 	}
 	return out
+}
+
+func problems(r Row, i *corehttp.Info, s Sample, now time.Time, maxLedger uint64) []string {
+	var bad, warn []string
+	add := func(l Level, msg string) {
+		switch l {
+		case Bad:
+			bad = append(bad, msg)
+		case Warn:
+			warn = append(warn, msg)
+		}
+	}
+	if r.IntersectionLost {
+		add(Bad, "quorum intersection lost")
+	}
+	if r.State.Level != OK {
+		msg := "state " + i.State
+		if !s.NotSyncedSince.IsZero() {
+			msg += " for " + now.Sub(s.NotSyncedSince).Round(time.Second).String()
+		}
+		add(r.State.Level, msg)
+	}
+	if r.Ledger.Level != OK {
+		add(r.Ledger.Level, fmt.Sprintf("%d ledgers behind", maxLedger-i.Ledger.Num))
+	}
+	if r.Age.Level != OK {
+		add(r.Age.Level, fmt.Sprintf("last ledger closed %ds ago", i.Ledger.Age))
+	}
+	if r.Peers.Level != OK {
+		add(r.Peers.Level, fmt.Sprintf("%d authenticated peers", i.Peers.Authenticated))
+	}
+	if q := i.Quorum.QSet; q != nil && r.Quorum.Level != OK && r.Quorum.Level != Unknown {
+		switch {
+		case q.FailAt != nil && *q.FailAt < FailAtOK:
+			add(r.Quorum.Level, fmt.Sprintf("quorum fail_at %d", *q.FailAt))
+		case q.Missing.N() > 0:
+			add(r.Quorum.Level, fmt.Sprintf("%d quorum nodes missing", q.Missing.N()))
+		}
+	}
+	if r.Protocol.Level == Bad {
+		add(Bad, fmt.Sprintf("supports protocol %d but the ledger is at %d", i.ProtocolVersion, i.Ledger.Version))
+	}
+	if r.Build.Level == Warn {
+		add(Warn, "build differs from other hosts in the org")
+	}
+	if r.Upgrade.Level == Warn {
+		add(Warn, "armed upgrades differ across the org")
+	}
+	return append(bad, warn...)
 }
 
 func (s Sample) network() string {

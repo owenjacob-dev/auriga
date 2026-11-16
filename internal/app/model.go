@@ -28,6 +28,8 @@ const (
 	MinHeight = 24
 )
 
+func newTheme(dark, noColor bool) theme.Theme { return theme.New(dark, noColor) }
+
 // Options configure the root model.
 type Options struct {
 	Version string
@@ -73,6 +75,10 @@ type Model struct {
 	secretIn  *components.SecretInput
 	probeSeq  int
 	probing   map[string]int // alias -> seq of the probe in flight
+	pollGen   map[string]int // alias -> current poll cycle
+	// themeFixed is set when settings.toml chooses dark or light, so the
+	// terminal's background answer is ignored.
+	themeFixed bool
 }
 
 // New builds the root model.
@@ -98,8 +104,9 @@ func New(opts Options) Model {
 		fleet:    &ui.Fleet{},
 		secretIn: components.NewSecretInput(),
 		probing:  map[string]int{},
+		pollGen:  map[string]int{},
 	}
-	m.theme = theme.New(m.dark, opts.NoColor)
+	m.theme = newTheme(m.dark, opts.NoColor)
 	if fa, ok := root.(ui.FleetAware); ok {
 		fa.SetFleet(m.fleet)
 	}
@@ -119,7 +126,7 @@ func (m Model) tick() tea.Cmd {
 func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.tick(), m.top().Init()}
 	if m.backend != nil {
-		cmds = append(cmds, m.listen(), m.loadInventory())
+		cmds = append(cmds, m.listen(), m.loadSettings(), m.loadInventory())
 	}
 	return m.crash.safeCmd(tea.Batch(cmds...))
 }
@@ -183,8 +190,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case tea.BackgroundColorMsg:
-		m.dark = msg.IsDark()
-		m.theme = theme.New(m.dark, m.opts.NoColor)
+		if !m.themeFixed {
+			m.dark = msg.IsDark()
+			m.theme = newTheme(m.dark, m.opts.NoColor)
+		}
 		return m, nil
 	case tickMsg:
 		return m, m.tick()
@@ -210,6 +219,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.Push(hostdetail.New(msg.Alias))
 	}
 	if next, cmd, handled := m.handleFleet(msg); handled {
+		return next, cmd
+	}
+	if next, cmd, handled := m.handlePoll(msg); handled {
 		return next, cmd
 	}
 	s, cmd := m.top().Update(msg)
