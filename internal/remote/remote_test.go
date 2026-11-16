@@ -487,14 +487,14 @@ func TestAdminGetViaCurlAndHTTPCommand(t *testing.T) {
 		}
 		h := newFakeHost(t, "dash")
 		r := newDirectRunner(map[string]Conn{"a": h}, nil)
-		res, err := r.AdminGet(ctx(t), "a", port, "info", "/etc/stellar/stellar-core.cfg")
+		res, err := r.AdminGet(ctx(t), "a", port, "info", "/etc/stellar/stellar-core.cfg", "stellar-core")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if res.Status != 200 || res.Via != "curl" || string(res.Body) != `{"info":{"state":"Synced!"}}` {
 			t.Errorf("%+v %q", res, res.Body)
 		}
-		res, err = r.AdminGet(ctx(t), "a", port, "peers", "/etc/stellar/stellar-core.cfg")
+		res, err = r.AdminGet(ctx(t), "a", port, "peers", "/etc/stellar/stellar-core.cfg", "stellar-core")
 		if err != nil || res.Status != 404 {
 			t.Errorf("404 case: %+v %v", res, err)
 		}
@@ -509,14 +509,14 @@ func TestAdminGetViaCurlAndHTTPCommand(t *testing.T) {
 			}
 		}
 		r := newDirectRunner(map[string]Conn{"a": h}, nil)
-		res, err := r.AdminGet(ctx(t), "a", port, "quorum?compact=false", "/etc/stellar/stellar-core.cfg")
+		res, err := r.AdminGet(ctx(t), "a", port, "quorum?compact=false", "/etc/stellar/stellar-core.cfg", "stellar-core")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if res.Status != 200 || res.Via != "http-command" || !strings.Contains(string(res.Body), `"http-command"`) {
 			t.Errorf("%+v %q", res, res.Body)
 		}
-		if log := h.argvLog(t); !strings.Contains(log, "http-command quorum?compact=false") {
+		if log := h.argvLog(t); !strings.Contains(log, "http-command quorum?compact=false [cwd="+h.dir+"]") {
 			t.Errorf("argv log %q", log)
 		}
 	})
@@ -592,5 +592,42 @@ func TestConcurrentHelpersAskForSudoOnce(t *testing.T) {
 	}
 	if len(p.asked) != 1 {
 		t.Errorf("asked for the sudo password %d times, want once", len(p.asked))
+	}
+}
+
+// TestCoreRunsFromServiceWorkDir checks that stellar-core runs where the
+// service runs, so relative config paths resolve as they do for the node.
+// The packaged unit sets no WorkingDirectory, which systemd runs from "/".
+func TestCoreRunsFromServiceWorkDir(t *testing.T) {
+	for _, tc := range []struct {
+		name, workdir, wantCwd, wantBucket string
+	}{
+		{"unit sets WorkingDirectory", "", "", ""}, // expectations filled in below
+		{"packaged unit without WorkingDirectory", "-", "/", "/buckets"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newFakeHost(t, "dash")
+			want, bucket := tc.wantCwd, tc.wantBucket
+			if tc.workdir == "-" {
+				for i, e := range h.env {
+					if strings.HasPrefix(e, "SHIM_WORKDIR=") {
+						h.env[i] = "SHIM_WORKDIR="
+					}
+				}
+			} else {
+				want, bucket = h.dir, filepath.Join(h.dir, "buckets")
+			}
+			cfg := writeConfig(t, h, sampleConfig, 0o640) // BUCKET_DIR_PATH="buckets" (relative)
+			f, err := newDirectRunner(map[string]Conn{"a": h}, nil).Probe(ctx(t), "a", cfg, "stellar-core")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f.ServiceWorkDir != want || f.BucketDir != bucket {
+				t.Errorf("workdir %q bucket %q, want %q %q", f.ServiceWorkDir, f.BucketDir, want, bucket)
+			}
+			if log := h.argvLog(t); !strings.Contains(log, "version [cwd="+want+"]") {
+				t.Errorf("stellar-core version did not run from %s:\n%s", want, log)
+			}
+		})
 	}
 }

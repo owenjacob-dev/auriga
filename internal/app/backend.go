@@ -29,7 +29,7 @@ type Backend interface {
 	SaveInventory(*inventory.Inventory) error
 	// AdminClient returns a client for the host's admin endpoint. It does no
 	// I/O until a request is made.
-	AdminClient(alias string, port int, configPath string) *corehttp.Client
+	AdminClient(alias string, port int, configPath, service string) *corehttp.Client
 	// ResetAdmin forgets the host's transport choice (tunnel or fallback).
 	ResetAdmin(alias string)
 	// Close disconnects everything and zeroes cached secrets.

@@ -32,7 +32,8 @@ type ProbeFacts struct {
 	ConfigMode     string // octal, e.g. "640"
 	ConfigOwner    string // "root:stellar"
 	ConfigSHA256   string
-	HTTPPort       int // from the config; 0 when unset
+	HTTPPort       int    // from the config; 0 when unset
+	ServiceWorkDir string // where the service runs; relative config paths start here
 	BucketDir      string
 	DiskTotalKB    int64
 	DiskAvailKB    int64
@@ -80,6 +81,7 @@ func parseProbe(out []byte) (ProbeFacts, error) {
 	f.ConfigOwner = kv["config_owner"]
 	f.ConfigSHA256 = kv["config_sha256"]
 	f.HTTPPort = int(num("http_port"))
+	f.ServiceWorkDir = kv["service_workdir"]
 	f.BucketDir = kv["bucket_dir"]
 	f.DiskTotalKB = num("disk_total_kb")
 	f.DiskAvailKB = num("disk_avail_kb")
@@ -170,9 +172,9 @@ type AdminResponse struct {
 
 // AdminGet requests cmd (e.g. "quorum?compact=false") from the admin
 // endpoint by running curl, or stellar-core http-command, on the host.
-func (r *Runner) AdminGet(ctx context.Context, alias string, port int, cmd, configPath string) (AdminResponse, error) {
+func (r *Runner) AdminGet(ctx context.Context, alias string, port int, cmd, configPath, service string) (AdminResponse, error) {
 	res, err := r.Run(ctx, alias, HelperAdminGet, []Arg{
-		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgPath, configPath},
+		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgPath, configPath}, {ArgName, service},
 	}, RunOptions{})
 	if err != nil {
 		return AdminResponse{}, err

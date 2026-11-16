@@ -39,6 +39,7 @@ type hostTransport struct {
 	alias      string
 	port       int
 	configPath string
+	service    string
 
 	mu  sync.Mutex
 	via string
@@ -54,7 +55,7 @@ func (t *hostTransport) Name() string {
 }
 
 func (t *hostTransport) Do(ctx context.Context, cmd corehttp.Command) (int, []byte, error) {
-	res, err := t.runner.AdminGet(ctx, t.alias, t.port, cmd.String(), t.configPath)
+	res, err := t.runner.AdminGet(ctx, t.alias, t.port, cmd.String(), t.configPath, t.service)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -65,18 +66,18 @@ func (t *hostTransport) Do(ctx context.Context, cmd corehttp.Command) (int, []by
 }
 
 type adminKey struct {
-	alias, configPath string
-	port              int
+	alias, configPath, service string
+	port                       int
 }
 
 // AdminClient returns the admin client for a host: the SSH tunnel first, and
 // the on-host fallback once sshd refuses forwarding. Clients are cached per
 // host, port and config path so the fallback choice sticks.
-func (b *LiveBackend) AdminClient(alias string, port int, configPath string) *corehttp.Client {
+func (b *LiveBackend) AdminClient(alias string, port int, configPath, service string) *corehttp.Client {
 	if port == 0 {
 		port = DefaultHTTPPort
 	}
-	k := adminKey{alias, configPath, port}
+	k := adminKey{alias, configPath, service, port}
 	b.adminMu.Lock()
 	defer b.adminMu.Unlock()
 	if c, ok := b.admin[k]; ok {
@@ -84,7 +85,7 @@ func (b *LiveBackend) AdminClient(alias string, port int, configPath string) *co
 	}
 	tr := corehttp.NewAdaptive(
 		&tunnelTransport{pool: b.pool, alias: alias, port: port},
-		&hostTransport{runner: b.runner, alias: alias, port: port, configPath: configPath},
+		&hostTransport{runner: b.runner, alias: alias, port: port, configPath: configPath, service: service},
 		sshx.IsForwardingRefused,
 	)
 	c := corehttp.New(tr)

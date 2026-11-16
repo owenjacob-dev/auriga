@@ -62,7 +62,7 @@ func (m *Model) fetchInfo(alias string, gen int) tea.Cmd {
 	if ih == nil || m.backend == nil {
 		return nil
 	}
-	client := m.backend.AdminClient(alias, ih.HTTPPort, ih.ConfigPath)
+	client := m.backend.AdminClient(alias, ih.HTTPPort, ih.ConfigPath, ih.Service)
 	now := m.opts.Now
 	return func() tea.Msg {
 		info, raw, err := client.Info(context.Background()) // the client applies the 5 s timeout
@@ -158,7 +158,7 @@ func (m Model) fetchView(f ui.FetchMsg) tea.Cmd {
 	if ih == nil || m.backend == nil {
 		return nil
 	}
-	client := m.backend.AdminClient(f.Alias, ih.HTTPPort, ih.ConfigPath)
+	client := m.backend.AdminClient(f.Alias, ih.HTTPPort, ih.ConfigPath, ih.Service)
 	now := m.opts.Now
 	return func() tea.Msg {
 		ctx := context.Background()

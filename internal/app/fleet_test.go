@@ -99,7 +99,7 @@ func (f *fakeBackend) SaveInventory(inv *inventory.Inventory) error {
 }
 func (f *fakeBackend) Close() { f.closed = true }
 
-func (f *fakeBackend) AdminClient(alias string, _ int, _ string) *corehttp.Client {
+func (f *fakeBackend) AdminClient(alias string, _ int, _, _ string) *corehttp.Client {
 	return corehttp.New(&fakeAdmin{f: f, alias: alias})
 }
 

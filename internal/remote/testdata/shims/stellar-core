@@ -1,7 +1,7 @@
 #!/bin/sh
 # Test shim for stellar-core. Logs its argv to $SHIM_LOG. Like stellar-core
 # 30, gen-seed and sec-to-pub reject --conf.
-printf '%s\n' "stellar-core $*" >>"${SHIM_LOG:-/dev/null}"
+printf '%s\n' "stellar-core $* [cwd=$PWD]" >>"${SHIM_LOG:-/dev/null}"
 conf=0
 while [ $# -gt 0 ]; do
 	case "$1" in
