@@ -335,3 +335,10 @@ func (c *Conn) Exec(ctx context.Context, cmd string, stdin io.Reader, stdout, st
 		return err
 	}
 }
+
+// IsForwardingRefused reports whether err means sshd refused a direct-tcpip
+// channel (AllowTcpForwarding no, or a policy denying the target).
+func IsForwardingRefused(err error) bool {
+	var oe *ssh.OpenChannelError
+	return errors.As(err, &oe) && oe.Reason == ssh.Prohibited
+}

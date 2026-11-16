@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"log/slog"
+	"sync"
 
+	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
@@ -24,6 +26,11 @@ type Backend interface {
 	ReadConfig(ctx context.Context, alias, configPath string) (remote.RedactedConfig, error)
 	LoadInventory() (*inventory.Inventory, error)
 	SaveInventory(*inventory.Inventory) error
+	// AdminClient returns a client for the host's admin endpoint. It does no
+	// I/O until a request is made.
+	AdminClient(alias string, port int, configPath string) *corehttp.Client
+	// ResetAdmin forgets the host's transport choice (tunnel or fallback).
+	ResetAdmin(alias string)
 	// Close disconnects everything and zeroes cached secrets.
 	Close()
 }
@@ -36,6 +43,9 @@ type LiveBackend struct {
 	runner    *remote.Runner
 	resolver  *sshx.Resolver
 	configDir string
+
+	adminMu sync.Mutex
+	admin   map[adminKey]*corehttp.Client
 }
 
 // NewLiveBackend builds the backend for this process.
@@ -48,6 +58,7 @@ func NewLiveBackend(env sshx.Env, agentSock, configDir string, log *slog.Logger)
 		runner:    remote.NewRunner(pool, pool),
 		resolver:  resolver,
 		configDir: configDir,
+		admin:     map[adminKey]*corehttp.Client{},
 	}
 }
 
@@ -63,7 +74,10 @@ func (b *LiveBackend) Connect(alias string) { b.pool.Add(alias) }
 func (b *LiveBackend) Disconnect(alias string) {
 	b.pool.Remove(alias)
 	b.runner.Forget(alias)
+	b.forgetAdmin(alias)
 }
+
+func (b *LiveBackend) ResetAdmin(alias string) { b.forgetAdmin(alias) }
 
 func (b *LiveBackend) Reconnect(alias string) { b.pool.Reconnect(alias) }
 
