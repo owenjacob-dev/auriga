@@ -1,0 +1,27 @@
+#!/bin/sh
+# Test shim for stellar-core. Logs its argv to $SHIM_LOG.
+printf '%s\n' "stellar-core $*" >>"${SHIM_LOG:-/dev/null}"
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--conf) shift 2 ;;
+	*) break ;;
+	esac
+done
+case "$1" in
+version)
+	echo "stellar-core 30.0.0 (shim)"
+	echo "ledger protocol version: 30"
+	;;
+sec-to-pub)
+	IFS= read -r seed
+	case "$seed" in
+	SDHOAMBNLGCE2MV5ZKIVZAQD3VCLGP53P3OBSBI6UN5L5XZI5TKHFQL4) echo GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H ;;
+	SAAACAQDAQCQMBYIBEFAWDANBYHRAEISCMKBKFQXDAMRUGY4DUPB6NKI) echo GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q ;;
+	*) echo "invalid seed" >&2; exit 1 ;;
+	esac
+	;;
+*)
+	echo "stellar-core shim: unsupported command $1" >&2
+	exit 1
+	;;
+esac

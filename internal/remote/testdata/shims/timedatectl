@@ -1,0 +1,3 @@
+#!/bin/sh
+# Test shim for timedatectl.
+echo "${SHIM_NTP:-yes}"
