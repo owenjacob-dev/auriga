@@ -1,0 +1,24 @@
+┌ auriga · setup acme ─────────────────────────────────────────── 14:02:11 UTC ┐
+│ 1 ✓ 2 ✓ 3 ✓ 4 ✓ [5 Quorum] 6 – 7 8                                           │
+│                                                                              │
+│ ┃ Quality of your own org                                                    │
+│ ┃ > MEDIUM (new validators)                                                  │
+│ ┃   HIGH (Tier 1: needs 3 validators, each with an archive)                  │
+│                                                                              │
+│   Trust the testnet preset?                                                  │
+│   1 org, 3 validators (built in, snapshot 2024-12-13). ctrl+r fetches the    │
+│   current list.                                                              │
+│                                                                              │
+│                                                                              │
+│ ◐ acme-a, acme-b, acme-c: only 2 top-level entities; SDF recommends at leas… │
+│                                                                              │
+│ Preview of the quorum set stellar-core will build (for acme-a)               │
+│ 2 of 2  HIGH  (tolerates 0 failures)                                         │
+│   2 of 3  testnet.stellar.org  (tolerates 1 failure)                         │
+│     sdftest1  testnet.stellar.org HIGH                                       │
+│     sdftest2  testnet.stellar.org HIGH                                       │
+│     sdftest3  testnet.stellar.org HIGH                                       │
+│   2 of 3  acme.example  (tolerates 1 failure)                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Step 5 of 8 · Quorum · draft saved after each step                           │
+└ ⏎ next  ctrl+r refresh preset  esc back  ctrl+c quit ────────────────────────┘

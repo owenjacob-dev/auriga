@@ -1,0 +1,24 @@
+┌ auriga · setup acme ─────────────────────────────────────────── 14:02:11 UTC ┐
+│ 1 ✓ 2 ✓ 3 ✓ 4 ✓ 5 ✓ 6 – [7 Advanced] 8                                       │
+│                                                                              │
+│ acme-c: own quorum set                                                       │
+│ ┃ Trusted orgs and validators for acme-c                                     │
+│ ┃ [[HOME_DOMAINS]] and [[VALIDATORS]] entries, starting from the org-wide    │
+│ ┃ set. Entries for acme.example are ignored.                                 │
+│ ┃ [[HOME_DOMAINS]]                                                           │
+│ ┃ HOME_DOMAIN = "testnet.stellar.org"                                        │
+│ ┃ QUALITY = "HIGH"                                                           │
+│ ┃                                                                            │
+│ ┃ [[VALIDATORS]]                                                             │
+│ ┃ NAME = "sdftest1"                                                          │
+│ ┃ HOME_DOMAIN = "testnet.stellar.org"                                        │
+│ ┃ PUBLIC_KEY = "GDKXE2OZMJIPOSLNA6N6F2BVCI3O777I2OOC4BV7VOYUEHYX7RTRYA7Y"    │
+│ ┃ ADDRESS = "core-testnet1.stellar.org"                                      │
+│ ┃ HISTORY = "curl -sf                                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Step 7 of 8 · Advanced · draft saved after each step                         │
+└ ⏎ next  esc back  ctrl+c quit ───────────────────────────────────────────────┘

@@ -146,6 +146,11 @@ func (m *Model) Push(s ui.Screen) tea.Cmd {
 // and any typed but unsent secret cleared.
 func (m Model) Close() {
 	m.secretIn.Clear()
+	for _, s := range m.stack {
+		if c, ok := s.(interface{ Close() }); ok {
+			c.Close()
+		}
+	}
 	for _, p := range m.prompts {
 		p.Cancel()
 	}
@@ -207,6 +212,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case backendDoneMsg:
 		return m, nil
 	case ui.CloseMsg:
+		if c, ok := m.top().(interface{ Close() }); ok {
+			c.Close() // wipes secrets a screen holds, e.g. imported seeds
+		}
 		m.pop()
 		return m, nil
 	case ui.OpenHostPickerMsg:
@@ -222,6 +230,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 	}
 	if next, cmd, handled := m.handlePoll(msg); handled {
+		return next, cmd
+	}
+	if next, cmd, handled := m.handleWizard(msg); handled {
 		return next, cmd
 	}
 	s, cmd := m.top().Update(msg)
@@ -374,6 +385,11 @@ func (m Model) Render() string {
 		Body:   layout.Body,
 		Status: layout.Status,
 		Footer: components.Hints(t, append(m.top().Keys(), m.keys.Help, m.keys.Quit)...),
+	}
+	if tc, ok := m.top().(ui.TextCapture); ok && tc.CapturingText() {
+		// q and ? are typed into the field; only ctrl+c quits.
+		spec.Footer = components.Hints(t, append(m.top().Keys(),
+			key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")))...)
 	}
 	if p := m.activePrompt(); p != nil && m.overlay != overlayQuitConfirm {
 		spec.Body, spec.Footer = m.promptBody(ctx, p)

@@ -284,6 +284,10 @@ func (p *parser) topKey(e *unstable.Node, key string, v *unstable.Node, rawKV st
 		c.PreferredPeers, err = p.strings(e, key, v)
 	case "PREFERRED_PEER_KEYS":
 		c.PreferredPeerKeys, err = p.strings(e, key, v)
+	case "UNSAFE_QUORUM":
+		var b bool
+		b, err = p.boolean(e, key, v)
+		c.UnsafeQuorum = &b
 	case "HISTORY", "VALIDATORS", "HOME_DOMAINS", "QUORUM_SET":
 		p.unsupported("%s written as an inline value", key)
 		c.Unknown = append(c.Unknown, Entry{Key: key, Raw: rawKV})

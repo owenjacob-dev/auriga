@@ -56,7 +56,7 @@ func visibleColumns(width int) []int {
 }
 
 type keys struct {
-	Up, Down, Open, Add, Refresh, Remove, Pause key.Binding
+	Up, Down, Open, Add, Refresh, Remove, Pause, Setup key.Binding
 }
 
 func newKeys() keys {
@@ -68,6 +68,7 @@ func newKeys() keys {
 		Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 		Remove:  key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "remove")),
 		Pause:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
+		Setup:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "setup")),
 	}
 }
 
@@ -98,11 +99,31 @@ func (m *Model) Keys() []key.Binding {
 		}
 	}
 	k := m.keys
-	return []key.Binding{k.Add, k.Open, k.Refresh, k.Pause}
+	return []key.Binding{k.Add, k.Setup, k.Open, k.Refresh, k.Pause}
 }
 
 // SetFleet implements ui.FleetAware.
 func (m *Model) SetFleet(f *ui.Fleet) { m.fleet = f }
+
+// wizardFor opens the wizard for the selected host's org, preselecting the
+// org's hosts (or just the selected host when it has no org).
+func (m *Model) wizardFor() ui.OpenWizardMsg {
+	i := m.index()
+	if i < 0 {
+		return ui.OpenWizardMsg{}
+	}
+	sel := m.fleet.Hosts[i]
+	if sel.Org == "" {
+		return ui.OpenWizardMsg{Hosts: []string{sel.Alias}}
+	}
+	var hosts []string
+	for _, h := range m.fleet.Hosts {
+		if h.Org == sel.Org {
+			hosts = append(hosts, h.Alias)
+		}
+	}
+	return ui.OpenWizardMsg{Org: sel.Org, Hosts: hosts}
+}
 
 // FullHelp implements ui.FullHelp.
 func (m *Model) FullHelp() []key.Binding {
@@ -115,6 +136,7 @@ func (m *Model) FullHelp() []key.Binding {
 		long(k.Down, "↓ j", "Move down"),
 		long(k.Open, "enter", "Open the selected host"),
 		long(k.Add, "a", "Add hosts from ~/.ssh/config"),
+		long(k.Setup, "s", "Setup wizard for the selected host's org"),
 		long(k.Refresh, "r", "Poll and probe now, or reconnect a disconnected host"),
 		long(k.Pause, "p", "Pause or resume polling"),
 		long(k.Remove, "x", "Remove the host from the inventory (local only)"),
@@ -160,6 +182,8 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return m, ui.Emit(ui.OpenHostPickerMsg{})
 	case key.Matches(km, m.keys.Pause):
 		return m, ui.Emit(ui.TogglePauseMsg{})
+	case key.Matches(km, m.keys.Setup):
+		return m, ui.Emit(m.wizardFor())
 	case i < 0:
 		return m, nil
 	case key.Matches(km, m.keys.Up):

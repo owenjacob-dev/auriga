@@ -115,6 +115,11 @@ type Config struct {
 	PreferredPeers    []string
 	PreferredPeerKeys []string
 
+	// UnsafeQuorum lets stellar-core start with a quorum set that tolerates
+	// no failures. Auriga writes it only after the operator consents
+	// (docs/decisions.md, M4).
+	UnsafeQuorum *bool
+
 	HomeDomains []HomeDomain
 	Validators  []Validator
 	History     []HistoryArchive

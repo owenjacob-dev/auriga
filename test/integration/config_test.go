@@ -63,11 +63,11 @@ func TestRealConfigsAreAdoptableAndRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("render does not parse: %v\n%s", err, out)
 			}
-			if !reflect.DeepEqual(back.Config.Unknown, cfg.Unknown) || len(cfg.Unknown) == 0 {
-				t.Errorf("unknown keys changed: %+v -> %+v", cfg.Unknown, back.Config.Unknown)
+			if !reflect.DeepEqual(back.Config, cfg) {
+				t.Errorf("model changed after render and parse:\n%+v\n%+v", cfg, back.Config)
 			}
-			if !strings.Contains(string(out), "UNSAFE_QUORUM=true") {
-				t.Errorf("UNSAFE_QUORUM not kept verbatim:\n%s", out)
+			if cfg.UnsafeQuorum == nil || !*cfg.UnsafeQuorum || !strings.Contains(string(out), "UNSAFE_QUORUM = true") {
+				t.Errorf("UNSAFE_QUORUM not kept:\n%s", out)
 			}
 			for _, s := range []string{SeedA, SeedB, SeedC} {
 				if strings.Contains(string(rc.Text)+string(out), s) {
@@ -97,5 +97,24 @@ func TestBackupsListedOnRealHost(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].Time != time.Date(2026, 11, 2, 13, 10, 4, 0, time.UTC) || list[0].Owner != "root:stellar" || list[0].Mode != "640" {
 		t.Errorf("backups %+v", list)
+	}
+}
+
+func TestArchiveCheckOnRealHost(t *testing.T) {
+	h := NewHome(t, true)
+	pool := sshx.NewPool(sshx.PoolConfig{Resolver: sshx.NewResolver(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath})})
+	t.Cleanup(pool.Close)
+	w := watch(t, pool, sshx.HostKeyReject)
+	pool.Add("it-a")
+	w.waitFor(t, "it-a", sshx.StateConnected, 30*time.Second)
+	r := remote.NewRunner(pool, pool)
+	defer r.Close()
+	// The admin port answers 404 for this path: the archive does not exist.
+	c, err := r.CheckArchive(context.Background(), "it-a", "http://127.0.0.1:11626/.well-known/stellar-history.json", []string{"curl", "cp", "aws"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Exists != "no" || len(c.Missing) != 1 || c.Missing[0] != "aws" {
+		t.Errorf("%+v", c)
 	}
 }

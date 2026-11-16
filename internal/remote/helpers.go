@@ -279,3 +279,37 @@ func parseBackups(out []byte) []Backup {
 	sort.Slice(list, func(i, j int) bool { return list[i].Time.After(list[j].Time) })
 	return list
 }
+
+// ArchiveCheck is what check-archive found on a host.
+type ArchiveCheck struct {
+	Missing []string // programs the stellar user cannot run
+	// Exists is "yes" when the archive's .well-known file answers, "no",
+	// or "unknown" when the host has no curl.
+	Exists string
+}
+
+// CheckArchive checks the programs an archive needs and whether it exists,
+// from the host (so no request leaves the operator's machine).
+func (r *Runner) CheckArchive(ctx context.Context, alias, wellKnownURL string, binaries []string) (ArchiveCheck, error) {
+	args := []Arg{{ArgURL, wellKnownURL}}
+	for _, b := range binaries {
+		args = append(args, Arg{ArgName, b})
+	}
+	res, err := r.Run(ctx, alias, HelperArchive, args, RunOptions{})
+	if err != nil {
+		return ArchiveCheck{}, err
+	}
+	var c ArchiveCheck
+	for _, line := range strings.Split(string(res.Stdout), "\n") {
+		switch {
+		case strings.HasPrefix(line, "bin="):
+			name, ok, _ := strings.Cut(strings.TrimPrefix(line, "bin="), ":")
+			if ok != "yes" {
+				c.Missing = append(c.Missing, name)
+			}
+		case strings.HasPrefix(line, "exists="):
+			c.Exists = strings.TrimPrefix(line, "exists=")
+		}
+	}
+	return c, nil
+}

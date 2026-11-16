@@ -2,13 +2,21 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
+	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
+	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
 )
 
 // Backend is everything the UI needs from the outside world. All methods
@@ -33,6 +41,17 @@ type Backend interface {
 	AdminClient(alias string, port int, configPath, service string) *corehttp.Client
 	// ResetAdmin forgets the host's transport choice (tunnel or fallback).
 	ResetAdmin(alias string)
+
+	// Wizard support.
+	LoadDraft(org string) (*wizard.Draft, bool, error)
+	SaveDraft(*wizard.Draft) error
+	LoadPreset(n presets.Network) (*presets.Preset, error)
+	SavePreset(*presets.Preset) error
+	// FetchPreset downloads a preset's upstream file over HTTPS from the
+	// operator's machine. It is the only network call besides SSH, and runs
+	// only when the operator asks.
+	FetchPreset(ctx context.Context, n presets.Network) ([]byte, error)
+	CheckArchive(ctx context.Context, alias string, spec stellarcfg.ArchiveSpec, publish bool) (remote.ArchiveCheck, error)
 	// Close disconnects everything and zeroes cached secrets.
 	Close()
 }
@@ -105,6 +124,50 @@ func (b *LiveBackend) LoadSettings() (inventory.Settings, error) {
 
 func (b *LiveBackend) SaveInventory(inv *inventory.Inventory) error {
 	return inv.Save(b.configDir)
+}
+
+func (b *LiveBackend) LoadDraft(org string) (*wizard.Draft, bool, error) {
+	return wizard.LoadDraft(b.configDir, org)
+}
+
+func (b *LiveBackend) SaveDraft(d *wizard.Draft) error { return wizard.SaveDraft(b.configDir, d) }
+
+func (b *LiveBackend) LoadPreset(n presets.Network) (*presets.Preset, error) {
+	return presets.Load(b.configDir, n)
+}
+
+func (b *LiveBackend) SavePreset(p *presets.Preset) error {
+	return presets.SaveOverride(b.configDir, p)
+}
+
+// maxPresetSize bounds a preset download.
+const maxPresetSize = 1 << 20
+
+func (b *LiveBackend) FetchPreset(ctx context.Context, n presets.Network) ([]byte, error) {
+	u := presets.SourceURL(n)
+	if !strings.HasPrefix(u, "https://") {
+		return nil, fmt.Errorf("refusing to fetch %q: not https", u)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "auriga")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s: HTTP %d", u, resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, maxPresetSize))
+}
+
+func (b *LiveBackend) CheckArchive(ctx context.Context, alias string, spec stellarcfg.ArchiveSpec, publish bool) (remote.ArchiveCheck, error) {
+	return b.runner.CheckArchive(ctx, alias, spec.WellKnownURL(), spec.Binaries(publish))
 }
 
 func (b *LiveBackend) Close() {

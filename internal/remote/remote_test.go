@@ -659,3 +659,33 @@ func TestListBackups(t *testing.T) {
 		t.Errorf("no backups: %+v %v", empty, err)
 	}
 }
+
+func TestCheckArchive(t *testing.T) {
+	if _, err := exec.LookPath("curl"); err != nil {
+		t.Skip("curl not installed")
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/a/.well-known/stellar-history.json" {
+			io.WriteString(w, "{}")
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	h := newFakeHost(t, "dash")
+	r := newDirectRunner(map[string]Conn{"a": h}, nil)
+	c, err := r.CheckArchive(ctx(t), "a", srv.URL+"/a/.well-known/stellar-history.json", []string{"cp", "definitely-not-installed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Exists != "yes" || len(c.Missing) != 1 || c.Missing[0] != "definitely-not-installed" {
+		t.Errorf("%+v", c)
+	}
+	c, _ = r.CheckArchive(ctx(t), "a", srv.URL+"/b/.well-known/stellar-history.json", []string{"cp"})
+	if c.Exists != "no" || len(c.Missing) != 0 {
+		t.Errorf("%+v", c)
+	}
+	if _, err := r.CheckArchive(ctx(t), "a", "https://h/$(id)", nil); err == nil {
+		t.Error("unsafe URL accepted")
+	}
+}

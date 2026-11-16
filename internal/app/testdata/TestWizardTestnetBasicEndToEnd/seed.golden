@@ -1,0 +1,24 @@
+┌ auriga · setup acme ─────────────────────────────────────────── 14:02:11 UTC ┐
+│ 1 ✓ 2 ✓ 3 ✓ [4 Keys] 5 6 – 7 8                                               │
+│                                                                              │
+│ Seed to import for acme-a                                                    │
+│                                                                              │
+│ Paste the secret seed (S…). It is checked here, kept in memory only,         │
+│ and sent to acme-a over stdin during the deploy. It is never written to dis… │
+│                                                                              │
+│   ••••••••••••••••••••••••▏                                                  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Step 4 of 8 · Keys · draft saved after each step                             │
+└ ⏎ next  esc back  ctrl+c quit ───────────────────────────────────────────────┘

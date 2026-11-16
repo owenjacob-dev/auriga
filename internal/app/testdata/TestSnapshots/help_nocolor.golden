@@ -4,6 +4,7 @@
 │   ↓ j           Move down                                                    │
 │   enter         Open the selected host                                       │
 │   a             Add hosts from ~/.ssh/config                                 │
+│   s             Setup wizard for the selected host's org                     │
 │   r             Poll and probe now, or reconnect a disconnected host         │
 │   p             Pause or resume polling                                      │
 │   x             Remove the host from the inventory (local only)              │
@@ -11,7 +12,6 @@
 │   ?             Show or hide this help                                       │
 │   esc           Go back or close a dialog                                    │
 │   q, ctrl+c     Quit (asks first while work is running on a host)            │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

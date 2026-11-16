@@ -15,9 +15,12 @@ import (
 
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
+	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui"
+	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
 )
 
 const (
@@ -40,10 +43,16 @@ type fakeBackend struct {
 	events    chan sshx.Event
 	closed    bool
 
-	backups    map[string][]remote.Backup
-	admin      map[string]map[string][]byte // alias -> command name -> body
-	adminErr   map[string]error
-	adminCalls []string
+	backups        map[string][]remote.Backup
+	admin          map[string]map[string][]byte // alias -> command name -> body
+	drafts         map[string]*wizard.Draft
+	draftSaves     int
+	savedPreset    *presets.Preset
+	presetUpstream []byte
+	presetErr      error
+	archiveChecks  map[string]remote.ArchiveCheck
+	adminErr       map[string]error
+	adminCalls     []string
 }
 
 func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
@@ -51,6 +60,7 @@ func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
 		inv: inv, events: make(chan sshx.Event),
 		facts: map[string]remote.ProbeFacts{}, configs: map[string]remote.RedactedConfig{}, probeErr: map[string]error{},
 		admin: map[string]map[string][]byte{}, adminErr: map[string]error{}, backups: map[string][]remote.Backup{},
+		drafts: map[string]*wizard.Draft{}, archiveChecks: map[string]remote.ArchiveCheck{},
 	}
 }
 
@@ -109,6 +119,38 @@ func (f *fakeBackend) SaveInventory(inv *inventory.Inventory) error {
 }
 func (f *fakeBackend) Close() { f.closed = true }
 
+func (f *fakeBackend) LoadDraft(org string) (*wizard.Draft, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	d, ok := f.drafts[org]
+	return d, ok, nil
+}
+
+func (f *fakeBackend) SaveDraft(d *wizard.Draft) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := *d
+	f.drafts[d.OrgName] = &cp
+	f.draftSaves++
+	return nil
+}
+
+func (f *fakeBackend) LoadPreset(n presets.Network) (*presets.Preset, error) {
+	return presets.Load("", n)
+}
+func (f *fakeBackend) SavePreset(p *presets.Preset) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.savedPreset = p
+	return nil
+}
+func (f *fakeBackend) FetchPreset(context.Context, presets.Network) ([]byte, error) {
+	return f.presetUpstream, f.presetErr
+}
+func (f *fakeBackend) CheckArchive(_ context.Context, alias string, _ stellarcfg.ArchiveSpec, _ bool) (remote.ArchiveCheck, error) {
+	return f.archiveChecks[alias], nil
+}
+
 func (f *fakeBackend) AdminClient(alias string, _ int, _, _ string) *corehttp.Client {
 	return corehttp.New(&fakeAdmin{f: f, alias: alias})
 }
@@ -156,6 +198,10 @@ func step(t *testing.T, m Model, msg tea.Msg) Model {
 	return run(t, m, cmd)
 }
 
+// cmdWait is how long run waits for a command before treating it as a
+// timer or the pool listener and dropping it.
+var cmdWait = 100 * time.Millisecond
+
 func run(t *testing.T, m Model, cmd tea.Cmd) Model {
 	t.Helper()
 	if cmd == nil {
@@ -166,8 +212,8 @@ func run(t *testing.T, m Model, cmd tea.Cmd) Model {
 	var msg tea.Msg
 	select {
 	case msg = <-done:
-	case <-time.After(100 * time.Millisecond):
-		return m // a blocking listener
+	case <-time.After(cmdWait):
+		return m // a blocking listener or a timer
 	}
 	switch msg := msg.(type) {
 	case nil:
