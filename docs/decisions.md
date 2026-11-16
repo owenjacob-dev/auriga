@@ -44,12 +44,23 @@ The maintainer accepted the proposed defaults for all six questions.
 | DCO | The DCO GitHub App checks every pull request, and its `DCO` check is required on `main` | Enforces `git commit -s` on pushed commits as well as web commits. |
 | Not enforced | Signed (GPG or SSH) commits; actions pinned to commit SHAs | Not used yet; either can be turned on later. |
 
+## M1 implementation decisions (16 Nov 2026)
+
+| Decision | Reason |
+| -------- | ------ |
+| Helpers run as `sudo -n -- sh -s -- <args>`, or `sudo -k -S -p '' -- sh -s -- <args>` with the password as the first stdin line. Whether a host needs a password is probed with exactly that command and the script `exit 0`. | `-k` makes sudo ignore cached credentials, so it always reads the password line. Without it, a cached credential would leave the password for `sh` to execute, and it could appear in an error message. Probing with the real command line detects a sudoers rule that only allows `sh`. |
+| The redaction marker carries the full derived public key: `NODE_SEED = "<redacted:G…56 chars…> node-alias"`. | The key is public, and M3 needs it whole to parse and compare configs; the UI abbreviates it. |
+| `StrictHostKeyChecking` `ask`, `accept-new`, `no` and `off` all prompt for unknown keys; only `yes` refuses without asking. | Hard rule 4: no way to turn off host-key checking. `accept-new` would add keys without the operator seeing the fingerprint. |
+| A host whose known keys are all of other types than the one presented is treated as a changed key (hard failure). The client offers the known key types first, so this only happens if the server lost those keys. | Conservative: never prompt where OpenSSH would warn. |
+| The ssh home directory is the one in the password database, not `$HOME`. | OpenSSH ignores `$HOME` for `~/.ssh/config`. Reading `$HOME/.ssh/config` for the alias list while `ssh -G` read the passwd home would resolve aliases against a different file; found when running the binary against the compose stack. |
+| Auth failures, host key failures, ProxyCommand and invalid aliases stop automatic reconnects until the operator presses `r`. | Retrying cannot fix them, and repeated failed logins can trip fail2ban. |
+
 ## Verifications
 
 | Item | Milestone | Result |
 | ---- | --------- | ------ |
 | How stellar-core counts the three-validator minimum for a `HIGH` org when a node lists only its siblings | M4 | Pending |
-| The helper-script stdin protocol (script, sudo password and seed on one stdin) works under dash and bash | M1 | Pending |
-| `ssh -G` output across OpenSSH versions | M1 | Pending |
+| The helper-script stdin protocol (script, sudo password and seed on one stdin) works under dash and bash | M1 | **Changed.** dash reads a piped script in large blocks, so a secret placed after the script was swallowed by the parser and never reached the helper's `read` (bash reads byte by byte and worked). The runner now sends the secret only when the helper asks for it: `auriga_read_secret` prints a request line, and the runner writes the secret after seeing it. sh has finished reading the script by then, and a helper that never asks never receives the secret. The command stays `sudo … sh -s -- <args>`. Tested under dash and bash with the sudo shim (2026-11-16); real hosts are checked in the compose suite. |
+| `ssh -G` output across OpenSSH versions | M1 | OpenSSH 10.0 prints `StrictHostKeyChecking yes` as `true` (and `no` as `false`); the parser normalises both. 10.0 output is recorded in `internal/sshx/testdata/`; Ubuntu 24.04's OpenSSH 9.6 is added with the compose suite. |
 | Package-default config fingerprint from `apt.stellar.org` | M3 | Pending |
 | `expirationminutes` acceptance by stellar-core build | M6 | Pending |

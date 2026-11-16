@@ -31,8 +31,9 @@ test-secrets:
 
 # Docker Compose end-to-end suite on a private network passphrase.
 itest:
+	test/integration/setup.sh
 	$(COMPOSE) up -d --build --wait
-	$(GO) test -race -count=1 -tags integration ./test/integration/... ; status=$$?; \
+	$(GO) test -race -count=1 -tags integration ./test/integration/... ./internal/remote/... ; status=$$?; \
 	$(COMPOSE) down -v; exit $$status
 
 vuln:

@@ -1,0 +1,4 @@
+# Only the files the integration host image copies.
+*
+!internal/remote/testdata/shims/
+!test/integration/host/

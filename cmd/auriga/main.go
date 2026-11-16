@@ -7,12 +7,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/owenjacob-dev/auriga/internal/app"
+	"github.com/owenjacob-dev/auriga/internal/secret"
+	"github.com/owenjacob-dev/auriga/internal/sshx"
 	"github.com/owenjacob-dev/auriga/internal/xdg"
 )
 
@@ -73,12 +77,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	log := secret.Discard()
+	if f.debug {
+		lf, err := openDebugLog(dirs.State)
+		if err != nil {
+			fmt.Fprintln(stderr, "auriga: debug log:", err)
+			return 1
+		}
+		defer lf.Close() //nolint:errcheck
+		log = slog.New(secret.NewLogHandler(lf, slog.LevelDebug))
+		log.Info("auriga starting", "version", version)
+	}
+
+	backend := app.NewLiveBackend(sshx.DefaultEnv(), os.Getenv("SSH_AUTH_SOCK"), dirs.Config, log)
 	crash := app.NewCrash(nil)
 	model := app.New(app.Options{
 		Version: version,
 		NoColor: os.Getenv("NO_COLOR") != "",
 		Crash:   crash,
+		Backend: backend,
 	})
+	// Disconnect and zero cached passphrases and sudo passwords on every exit.
+	defer model.Close()
 	// Bubble Tea's own panic handler prints the panic value and stack to the
 	// terminal unredacted; the root model catches panics instead.
 	p := tea.NewProgram(model, tea.WithoutCatchPanics())
@@ -100,6 +120,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// openDebugLog opens debug.log in the state directory for appending, owner
+// read/write only.
+func openDebugLog(stateDir string) (*os.File, error) {
+	if err := xdg.EnsureDir(stateDir); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(stateDir, "debug.log")
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, xdg.FileMode) //nolint:gosec // fixed name in our state dir
+	if err != nil {
+		return nil, err
+	}
+	if err := f.Chmod(xdg.FileMode); err != nil {
+		f.Close() //nolint:errcheck,gosec
+		return nil, err
+	}
+	return f, nil
 }
 
 // runProgram runs p and turns any panic that escapes the model's own guards

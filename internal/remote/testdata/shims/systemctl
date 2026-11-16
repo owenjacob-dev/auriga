@@ -1,0 +1,13 @@
+#!/bin/sh
+# Test shim for systemctl.
+case "$1" in
+is-active) echo "${SHIM_ACTIVE:-active}"; [ "${SHIM_ACTIVE:-active}" = active ] ;;
+is-enabled) echo "${SHIM_ENABLED:-enabled}" ;;
+show)
+	case "$3" in
+	LoadState) echo "${SHIM_LOAD:-loaded}" ;;
+	WorkingDirectory) echo "${SHIM_WORKDIR:-}" ;;
+	esac
+	;;
+*) exit 1 ;;
+esac

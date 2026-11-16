@@ -1,0 +1,36 @@
+#!/bin/sh
+# Test shim for sudo. SHIM_SUDO=password makes root commands need
+# SHIM_SUDO_PASSWORD on stdin (with -S); anything else is NOPASSWD.
+# Like real sudo with -S, the password is read one byte at a time, leaving
+# the rest of stdin for the command.
+nonint=0
+user=root
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-n) nonint=1; shift ;;
+	-k | -S) shift ;;
+	-p) shift 2 ;;
+	-u) user=$2; shift 2 ;;
+	--) shift; break ;;
+	-*) echo "sudo shim: unknown option $1" >&2; exit 1 ;;
+	*) break ;;
+	esac
+done
+if [ "$user" = root ] && [ "$SHIM_SUDO" = password ]; then
+	if [ $nonint = 1 ]; then
+		echo "sudo: a password is required" >&2
+		exit 1
+	fi
+	tries=0
+	while [ $tries -lt 3 ]; do
+		IFS= read -r pw || { echo "sudo: no password was provided" >&2; exit 1; }
+		if [ "$pw" = "$SHIM_SUDO_PASSWORD" ]; then
+			exec "$@"
+		fi
+		echo "Sorry, try again." >&2
+		tries=$((tries + 1))
+	done
+	echo "sudo: 3 incorrect password attempts" >&2
+	exit 1
+fi
+exec "$@"
