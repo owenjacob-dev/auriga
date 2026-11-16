@@ -250,8 +250,12 @@ func Warnings(h *ui.HostView) []string {
 	if p.DiskAvailKB > 0 && p.DiskAvailKB < LowDiskKB {
 		w = append(w, fmt.Sprintf("only %s free for buckets", humanKB(p.DiskAvailKB)))
 	}
-	if p.NTPSync != "yes" {
+	switch p.NTPSync {
+	case "yes":
+	case "no":
 		w = append(w, "clock is not NTP-synchronised")
+	default:
+		w = append(w, "clock sync unknown (no timedatectl)")
 	}
 	return w
 }
@@ -273,6 +277,9 @@ func row(t theme.Theme, h *ui.HostView, selected bool) string {
 			free = humanKB(p.DiskAvailKB)
 		}
 		ntp = p.NTPSync
+		if ntp != "yes" && ntp != "no" {
+			ntp = "?"
+		}
 	}
 	if h.Config != nil && h.Config.PublicKey != "" {
 		key = strkey.Abbrev(h.Config.PublicKey)

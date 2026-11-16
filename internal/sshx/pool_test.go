@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -330,5 +331,36 @@ func TestBackoff(t *testing.T) {
 				t.Fatalf("backoff(%d) = %v, want %v ±20%%", n, d, base)
 			}
 		}
+	}
+}
+
+func TestPoolJumpHostPromptNamesTheTarget(t *testing.T) {
+	f := newPoolFixture(t, 2)
+	jump, target := f.servers[0], f.servers[1]
+	jump.AllowForwarding = true
+	// Fresh known_hosts: both keys unknown.
+	home := t.TempDir()
+	key := filepath.Join(home, ".ssh", "id")
+	writeFile(t, key, string(mustRead(t, f.key)))
+	f.home = home
+	f.hosts = map[string]hostSpec{
+		"bastion": {addr: jump.Addr, identity: []string{key}},
+		"target":  {addr: target.Addr, identity: []string{key}, proxyJump: "bastion"},
+	}
+	var mu sync.Mutex
+	var got []string
+	p := f.pool(t, PoolConfig{})
+	c := collect(t, p, func(e PromptEvent) {
+		mu.Lock()
+		got = append(got, e.Alias+"/"+e.HostKey.Alias)
+		mu.Unlock()
+		e.AnswerHostKey(HostKeyTrustSession)
+	})
+	p.Add("target")
+	c.wait(t, "target", StateConnected, 5*time.Second)
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"target/bastion", "target/target"}; !slices.Equal(got, want) {
+		t.Errorf("prompts %v, want %v", got, want)
 	}
 }

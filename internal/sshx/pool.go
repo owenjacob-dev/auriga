@@ -72,6 +72,8 @@ type StateEvent struct{ HostState }
 // PromptEvent asks the operator something on behalf of a worker. The UI
 // must call exactly one of the answer methods.
 type PromptEvent struct {
+	// Alias is the inventory host whose connection needs the answer. For a
+	// jump host, HostKey.Alias names the hop and Alias the host behind it.
 	Alias   string
 	HostKey *HostKeyQuestion // set for host key prompts
 	KeyPath string           // set for key passphrase prompts
@@ -312,7 +314,14 @@ func (p *Pool) SudoPassword(ctx context.Context, alias string, retry bool) (*sec
 	return a.pass, nil
 }
 
+// hostCtxKey carries the worker's alias through a dial, so prompts raised
+// for a jump host are attributed to the host the operator added.
+type hostCtxKey struct{}
+
 func (p *Pool) ask(ctx context.Context, e PromptEvent) (promptAnswer, error) {
+	if alias, ok := ctx.Value(hostCtxKey{}).(string); ok {
+		e.Alias = alias
+	}
 	e.reply = make(chan promptAnswer, 1)
 	p.emit(e)
 	select {
@@ -376,7 +385,7 @@ func (w *worker) run() {
 		}
 		w.setState(func(s *HostState) { s.State, s.NextRetry, s.Waiting = state, time.Time{}, false })
 
-		conn, err := w.pool.dialer.Dial(w.ctx, w.alias)
+		conn, err := w.pool.dialer.Dial(context.WithValue(w.ctx, hostCtxKey{}, w.alias), w.alias)
 		if w.ctx.Err() != nil {
 			if conn != nil {
 				conn.Close() //nolint:errcheck,gosec

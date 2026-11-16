@@ -88,7 +88,7 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 		lines = append(lines, wrapLabel(t.Bad.Render("Error"), h.Conn.Err, ctx.Cols)...)
 	}
 	if h.Conn.Waiting {
-		lines = append(lines, label("", "Press r to retry once the problem is fixed."))
+		lines = append(lines, t.Muted.Render("Press r to retry once the problem is fixed."))
 	}
 
 	lines = append(lines, "", t.Header.Render("Probe"))

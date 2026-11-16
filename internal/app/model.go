@@ -391,10 +391,15 @@ func (m Model) promptBody(ctx ui.Context, p *sshx.PromptEvent) ([]string, string
 		more = t.Muted.Render(fmt.Sprintf("  (%d more waiting)", n))
 	}
 	if q := p.HostKey; q != nil {
+		who := fmt.Sprintf("%s (%s)", q.Alias, q.Address)
+		if q.Alias != p.Alias {
+			who = fmt.Sprintf("%s (%s, jump host for %s)", q.Alias, q.Address, p.Alias)
+		}
 		body := []string{
 			t.Warn.Render("◐ Unknown host key") + more,
 			"",
-			fmt.Sprintf("%s (%s) presented a host key that is not in known_hosts:", q.Alias, q.Address),
+			who + " presented a host key",
+			"that is not in known_hosts:",
 			"",
 			"  " + t.Header.Render(q.KeyType+" "+q.Fingerprint),
 			"",
