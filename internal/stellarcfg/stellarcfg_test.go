@@ -48,7 +48,7 @@ func golden(t *testing.T, name string, got []byte) {
 	}
 }
 
-var adoptable = []string{"sdf-pubnet-validator-full.cfg", "package-testnet-validator.redacted.cfg", "adopted-unknown-keys.cfg"}
+var adoptable = []string{"sdf-pubnet-validator-full.cfg", "package-testnet-validator.redacted.cfg", "adopted-unknown-keys.cfg", "itest-validator.redacted.cfg"}
 
 func mustParse(t *testing.T, text []byte) *Result {
 	t.Helper()

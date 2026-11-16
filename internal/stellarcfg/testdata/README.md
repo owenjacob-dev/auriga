@@ -11,6 +11,8 @@
 - `package-testnet-validator.redacted.cfg`: `/etc/stellar/stellar-core_testnet_validator.cfg`
   as installed by the stellar-core 30.0.0 package from apt.stellar.org, with
   its published example seed redacted the way the read-config helper does.
+- `itest-validator.redacted.cfg`: host-a's config from the integration stack
+  (test vector seed, redacted).
 - `adopted-unknown-keys.cfg`, `legacy-quorum-set.cfg`, `malformed.cfg`,
   `plain-seed.cfg`: hand-written cases.
 
