@@ -1,0 +1,3 @@
+#!/bin/sh
+# Test shim for chown: the test user cannot give files to root:stellar.
+printf '%s\n' "chown $*" >>"${SHIM_LOG:-/dev/null}"

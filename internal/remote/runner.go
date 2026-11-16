@@ -22,14 +22,23 @@ var scripts embed.FS
 // Helper names the embedded scripts.
 type Helper string
 
-// The helpers available so far. Later milestones add stage, install,
-// restart, rollback and gen-seed.
+// The helpers.
 const (
 	HelperProbe      Helper = "probe"
 	HelperReadConfig Helper = "read-config"
 	HelperAdminGet   Helper = "admin-get"
 	HelperBackups    Helper = "list-backups"
 	HelperArchive    Helper = "check-archive"
+
+	HelperPreflight   Helper = "preflight"
+	HelperGenSeed     Helper = "gen-seed"
+	HelperStage       Helper = "stage"
+	HelperStageBackup Helper = "stage-backup"
+	HelperBackup      Helper = "backup"
+	HelperInstall     Helper = "install"
+	HelperInit        Helper = "init"
+	HelperRestart     Helper = "restart"
+	HelperRollback    Helper = "rollback"
 )
 
 func script(h Helper) ([]byte, error) {
