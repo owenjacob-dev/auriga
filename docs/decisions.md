@@ -23,6 +23,7 @@ The maintainer accepted the proposed defaults for all six questions.
 | Date | Decision | Reason |
 | ---- | -------- | ------ |
 | 2026-11-14 | The `go` directive is 1.26.7, not 1.25. | `charm.land/bubbletea/v2` v2.1.1, `charm.land/lipgloss/v2` v2.1.0 and `ultraviolet` require Go 1.26. This still meets the spec's "Go 1.25 or later". |
+| 2026-11-16 | `go.mod` pins `toolchain go1.26.11`. | CI installs the version `go.mod` names. With only `go 1.26.7`, govulncheck flagged standard-library fixes (net/http, crypto/tls, crypto/x509, mime/multipart; GO-2026-6603 and others) that need 1.26.9–1.26.11. They became reachable in M2, when the admin client started using net/http. |
 | 2026-11-14 | `--config` names Auriga's config **directory** (inventory, settings, drafts, presets), not a single file. | The spec lists the flag without saying what it points at, and every local file lives in the config directory. |
 | 2026-11-14 | Bubble Tea's own panic handler is disabled (`tea.WithoutCatchPanics`). The root model recovers panics in `Update`, `View` and commands, then writes a redacted crash report to the state directory. | Bubble Tea's handler prints the panic value and stack to the terminal unredacted, which conflicts with "no secret in crash output". |
 | 2026-11-14 | Golden files live in each package's own `testdata/`. Fixtures shared by several packages (recorded `info`/`quorum`/`peers` JSON, sample configs) live in the top-level `testdata/`. | Go tooling resolves `testdata/` per package; the shared fixtures still sit where `CLAUDE.md` says. |
