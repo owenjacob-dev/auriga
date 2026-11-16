@@ -99,6 +99,9 @@ const (
 )
 
 type sudoState struct {
+	// mu serialises discovery, so helpers that start together on a host ask
+	// for its sudo password once, not once each.
+	mu       sync.Mutex
 	mode     sudoMode
 	password *secret.Buffer
 }
@@ -174,6 +177,8 @@ func (r *Runner) ensureSudo(ctx context.Context, alias string) (*sudoState, erro
 		r.sudo[alias] = st
 	}
 	r.mu.Unlock()
+	st.mu.Lock()
+	defer st.mu.Unlock()
 	if st.mode != sudoUnknown {
 		return st, nil
 	}
