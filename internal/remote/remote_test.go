@@ -631,3 +631,31 @@ func TestCoreRunsFromServiceWorkDir(t *testing.T) {
 		})
 	}
 }
+
+func TestListBackups(t *testing.T) {
+	h := newFakeHost(t, "dash")
+	cfg := writeConfig(t, h, sampleConfig, 0o640)
+	for _, name := range []string{".auriga-20261101T090000Z.bak", ".auriga-20261102T131004Z.bak", ".orig", ".auriga-notastamp.bak"} {
+		if err := os.WriteFile(cfg+name, []byte("x"), 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list, err := newDirectRunner(map[string]Conn{"a": h}, nil).ListBackups(ctx(t), "a", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("backups %+v", list)
+	}
+	if !strings.HasSuffix(list[1].Path, "20261102T131004Z.bak") || list[1].Time != time.Date(2026, 11, 2, 13, 10, 4, 0, time.UTC) ||
+		list[1].Size != 1 || list[1].Mode != "640" {
+		t.Errorf("newest named backup %+v", list[1])
+	}
+	if !strings.HasSuffix(list[2].Path, "20261101T090000Z.bak") {
+		t.Errorf("order %+v", list)
+	}
+	empty, err := newDirectRunner(map[string]Conn{"a": h}, nil).ListBackups(ctx(t), "a", filepath.Join(h.dir, "none.cfg"))
+	if err != nil || len(empty) != 0 {
+		t.Errorf("no backups: %+v %v", empty, err)
+	}
+}

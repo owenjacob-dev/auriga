@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Config model: each host's config (read with the seed redacted on the host)
+  is classified as unconfigured, adoptable or read-only, and validated. Keys
+  Auriga does not manage are kept verbatim; renders are deterministic and
+  never contain a seed.
+- Config tab: classification, problems, backups and the file, with `d` to show
+  what a first deploy would change (adoption notes and a diff).
+- `PUBLIC_HTTP_PORT=true` on any host is flagged in red.
 - Live dashboard: polls each host's `info` every 5 s (configurable 2–60 s in
   `settings.toml`, `p` to pause) and shows state, ledger, age, peers, quorum,
   intersection, protocol and armed upgrades, coloured by SDF's monitoring

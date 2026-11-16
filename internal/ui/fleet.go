@@ -10,6 +10,7 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 )
 
 // HostView is everything the UI knows about one host. The root model owns
@@ -27,6 +28,11 @@ type HostView struct {
 
 	HomeDomain string // from the config, when it parses
 	Network    string // "testnet", "pubnet" or ""
+
+	// Config model (set after each probe).
+	Class   *stellarcfg.Classification
+	Issues  []stellarcfg.Issue // validation, for adoptable configs
+	Backups []remote.Backup
 
 	// Admin endpoint polling.
 	Info           *corehttp.Info // last successful info; kept when polls fail

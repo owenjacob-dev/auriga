@@ -40,6 +40,7 @@ type fakeBackend struct {
 	events    chan sshx.Event
 	closed    bool
 
+	backups    map[string][]remote.Backup
 	admin      map[string]map[string][]byte // alias -> command name -> body
 	adminErr   map[string]error
 	adminCalls []string
@@ -49,7 +50,7 @@ func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
 	return &fakeBackend{
 		inv: inv, events: make(chan sshx.Event),
 		facts: map[string]remote.ProbeFacts{}, configs: map[string]remote.RedactedConfig{}, probeErr: map[string]error{},
-		admin: map[string]map[string][]byte{}, adminErr: map[string]error{},
+		admin: map[string]map[string][]byte{}, adminErr: map[string]error{}, backups: map[string][]remote.Backup{},
 	}
 }
 
@@ -76,8 +77,17 @@ func (f *fakeBackend) Probe(_ context.Context, a, _, _ string) (remote.ProbeFact
 	return f.facts[a], f.probeErr[a]
 }
 func (f *fakeBackend) ReadConfig(_ context.Context, a, _ string) (remote.RedactedConfig, error) {
-	return f.configs[a], nil
+	if c, ok := f.configs[a]; ok {
+		return c, nil
+	}
+	// Hosts a test does not set up get a valid, healthy config.
+	return remote.RedactedConfig{PublicKey: pubA, Seed: remote.SeedPresent, NodeAlias: "acme-a",
+		Text: cfgText("", "Public Global Stellar Network ; September 2015")}, nil
 }
+func (f *fakeBackend) ListBackups(_ context.Context, a, _ string) ([]remote.Backup, error) {
+	return f.backups[a], nil
+}
+
 func (f *fakeBackend) LoadInventory() (*inventory.Inventory, error) {
 	if f.inv == nil {
 		return nil, errors.New("broken file")
@@ -190,9 +200,18 @@ func startModel(t *testing.T, b *fakeBackend) Model {
 }
 
 func cfgText(home, pass string) []byte {
+	homeLine := ""
+	if home != "" {
+		homeLine = `NODE_HOME_DOMAIN="` + home + "\"\n"
+	}
 	return []byte(`NETWORK_PASSPHRASE="` + pass + `"
 NODE_SEED="<redacted:` + pubA + `> acme-a"
-NODE_HOME_DOMAIN="` + home + `"
+NODE_IS_VALIDATOR=true
+` + homeLine + `HTTP_PORT=11626
+PUBLIC_HTTP_PORT=false
+DATABASE="postgresql://dbname=stellar user=stellar"
+BUCKET_DIR_PATH="/var/lib/stellar/buckets"
+LOG_FILE_PATH="/var/log/stellar/stellar-core.log"
 `)
 }
 

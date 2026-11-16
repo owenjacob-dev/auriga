@@ -24,6 +24,7 @@ type Backend interface {
 	Reconnect(alias string)
 	Probe(ctx context.Context, alias, configPath, service string) (remote.ProbeFacts, error)
 	ReadConfig(ctx context.Context, alias, configPath string) (remote.RedactedConfig, error)
+	ListBackups(ctx context.Context, alias, configPath string) ([]remote.Backup, error)
 	LoadInventory() (*inventory.Inventory, error)
 	LoadSettings() (inventory.Settings, error)
 	SaveInventory(*inventory.Inventory) error
@@ -88,6 +89,10 @@ func (b *LiveBackend) Probe(ctx context.Context, alias, configPath, service stri
 
 func (b *LiveBackend) ReadConfig(ctx context.Context, alias, configPath string) (remote.RedactedConfig, error) {
 	return b.runner.ReadConfig(ctx, alias, configPath)
+}
+
+func (b *LiveBackend) ListBackups(ctx context.Context, alias, configPath string) ([]remote.Backup, error) {
+	return b.runner.ListBackups(ctx, alias, configPath)
 }
 
 func (b *LiveBackend) LoadInventory() (*inventory.Inventory, error) {

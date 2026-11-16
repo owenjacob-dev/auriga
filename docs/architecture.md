@@ -58,6 +58,16 @@ forwarding, the `admin-get.sh` helper on the host. `corehttp.Adaptive`
 switches between them. Response types are lenient across core builds;
 `testdata/core/recorded/` pins field names to real responses.
 
+## Config model (`internal/stellarcfg`)
+
+`Parse` walks go-toml's AST: owned keys become typed fields, everything else
+becomes a verbatim `Entry`. `Render` writes a fixed layout from the model and
+a `RenderOptions` time, so the same input always gives the same bytes;
+`NODE_SEED` is a `<auriga-seed:…>` marker that only the host helper replaces.
+`Validate` returns blocking issues and warnings; `Classify` decides
+unconfigured, adoptable or read-only. The root model runs both after every
+probe.
+
 ## Polling and health
 
 The root model polls each connected host's `info` on its own `tea.Tick`

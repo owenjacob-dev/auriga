@@ -28,6 +28,7 @@ const (
 	HelperProbe      Helper = "probe"
 	HelperReadConfig Helper = "read-config"
 	HelperAdminGet   Helper = "admin-get"
+	HelperBackups    Helper = "list-backups"
 )
 
 func script(h Helper) ([]byte, error) {

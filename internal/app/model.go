@@ -216,7 +216,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.Push(hostpicker.New(existing))
 	case ui.OpenHostMsg:
-		return m, m.Push(hostdetail.New(msg.Alias))
+		return m, m.Push(hostdetail.New(msg.Alias).WithVersion(m.opts.Version))
 	}
 	if next, cmd, handled := m.handleFleet(msg); handled {
 		return next, cmd
