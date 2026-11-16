@@ -74,8 +74,9 @@ type StateEvent struct{ HostState }
 type PromptEvent struct {
 	Alias   string
 	HostKey *HostKeyQuestion // set for host key prompts
-	KeyPath string           // set for passphrase prompts
-	Retry   bool             // the previous passphrase was wrong
+	KeyPath string           // set for key passphrase prompts
+	Sudo    bool             // set for sudo password prompts
+	Retry   bool             // the previous passphrase or password was wrong
 	reply   chan promptAnswer
 }
 
@@ -290,6 +291,18 @@ func (p *Pool) ConfirmHostKey(ctx context.Context, q HostKeyQuestion) (HostKeyDe
 // Passphrase implements Prompter by asking the UI.
 func (p *Pool) Passphrase(ctx context.Context, alias, keyPath string, retry bool) (*secret.Buffer, error) {
 	a, err := p.ask(ctx, PromptEvent{Alias: alias, KeyPath: keyPath, Retry: retry})
+	if err != nil {
+		return nil, err
+	}
+	if a.err != nil {
+		return nil, a.err
+	}
+	return a.pass, nil
+}
+
+// SudoPassword asks the UI for alias's sudo password (remote.PasswordPrompter).
+func (p *Pool) SudoPassword(ctx context.Context, alias string, retry bool) (*secret.Buffer, error) {
+	a, err := p.ask(ctx, PromptEvent{Alias: alias, Sudo: true, Retry: retry})
 	if err != nil {
 		return nil, err
 	}
