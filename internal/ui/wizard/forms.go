@@ -83,11 +83,15 @@ func (m *Model) buildForm() *huh.Form {
 		))
 
 	case StepNetwork:
+		nets := []huh.Option[string]{
+			huh.NewOption("Testnet (reset periodically by SDF)", "testnet"),
+			huh.NewOption("Pubnet (mainnet)", "pubnet"),
+		}
+		if _, ok := Passphrases[NetworkPrivate]; ok {
+			nets = append(nets, huh.NewOption("Private test network (test flag; no preset)", NetworkPrivate))
+		}
 		groups = append(groups, huh.NewGroup(
-			huh.NewSelect[string]().Title("Network").Options(
-				huh.NewOption("Testnet (reset periodically by SDF)", "testnet"),
-				huh.NewOption("Pubnet (mainnet)", "pubnet"),
-			).Value(&d.Network),
+			huh.NewSelect[string]().Title("Network").Options(nets...).Value(&d.Network),
 		))
 		if changing := m.hostsChangingNetwork(); len(changing) > 0 {
 			var opts []huh.Option[string]

@@ -421,3 +421,23 @@ func TestPerHostQuorumOverride(t *testing.T) {
 		}
 	}
 }
+
+func TestPrivateTestNetwork(t *testing.T) {
+	const pass = "Auriga Integration Network ; November 2026"
+	d, f := testnetBasic()
+	d.Network = NetworkPrivate
+	if p := BuildPlan(Input{Draft: d, Facts: f, Render: renderOpt}); len(blocking(p)) == 0 {
+		t.Fatal("private network accepted without the test flag")
+	}
+	EnableTestNetwork(pass)
+	t.Cleanup(func() { delete(Passphrases, NetworkPrivate) })
+	p := BuildPlan(Input{Draft: d, Facts: f, Render: renderOpt})
+	if b := blocking(p); len(b) != 0 {
+		t.Fatalf("blocking: %v", b)
+	}
+	for _, hp := range p.Hosts {
+		if hp.Config.NetworkPassphrase != pass {
+			t.Errorf("%s: %q", hp.Alias, hp.Config.NetworkPassphrase)
+		}
+	}
+}

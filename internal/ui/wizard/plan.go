@@ -45,6 +45,17 @@ var Passphrases = map[string]string{
 	inventory.NetworkPubnet:  "Public Global Stellar Network ; September 2015",
 }
 
+// NetworkPrivate is the test-only network the integration suite runs on.
+const NetworkPrivate = "private"
+
+// EnableTestNetwork offers a private network with passphrase in the
+// wizard. Only the hidden test flag calls it; it has no preset.
+func EnableTestNetwork(passphrase string) {
+	if passphrase != "" {
+		Passphrases[NetworkPrivate] = passphrase
+	}
+}
+
 // HostFacts is what Auriga knows about a host before planning.
 type HostFacts struct {
 	// Existing is the host's adoptable config, nil for a new node, and

@@ -359,7 +359,9 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 			return m, nil
 		}
 	case PresetMsg:
-		if msg.Err != nil {
+		if msg.Err != nil && m.draft.Network == NetworkPrivate {
+			m.preset, m.draft.Quorum.UsePreset = nil, false // no preset for the test network
+		} else if msg.Err != nil {
 			m.flash = "Preset not loaded: " + msg.Err.Error()
 		} else {
 			m.preset = msg.Preset
