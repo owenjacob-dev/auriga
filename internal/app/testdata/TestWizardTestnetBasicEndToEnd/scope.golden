@@ -1,0 +1,24 @@
+┌ auriga · setup acme ─────────────────────────────────────────── 14:02:11 UTC ┐
+│ [1 Scope] 2 3 4 5 6 – 7 8                                                    │
+│                                                                              │
+│ ┃ Organisation name                                                          │
+│ ┃ A short name for this org in Auriga, e.g. acme.                            │
+│ ┃ > acme                                                                     │
+│                                                                              │
+│   Home domain (NODE_HOME_DOMAIN)                                             │
+│   The domain that publishes your stellar.toml, e.g. acme.org.                │
+│   >                                                                          │
+│                                                                              │
+│   Hosts in this org                                                          │
+│   space selects; read-only and unprobed hosts are not listed                 │
+│     [•] acme-a                                                               │
+│     [ ] acme-b                                                               │
+│     [ ] acme-c                                                               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Step 1 of 8 · Scope · draft saved after each step                            │
+└ ⏎ next  esc back  ctrl+c quit ───────────────────────────────────────────────┘

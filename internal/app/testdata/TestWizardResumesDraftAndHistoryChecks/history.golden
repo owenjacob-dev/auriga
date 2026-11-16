@@ -1,0 +1,24 @@
+┌ auriga · setup acme ─────────────────────────────────────────── 14:02:11 UTC ┐
+│ 1 ✓ 2 ✓ 3 ✓ 4 ✓ 5 ✓ [6 History] 7 8                                          │
+│                                                                              │
+│ acme-a                                                                       │
+│ ┃ Archive name for acme-a                                                    │
+│ ┃ The [HISTORY.<name>] table and the new-hist argument.                      │
+│ ┃ > acme-a                                                                   │
+│                                                                              │
+│   Backend                                                                    │
+│   > S3-compatible (S3, R2, B2)                                               │
+│     Local directory served by nginx                                          │
+│     Custom commands                                                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Resumed your saved draft.                                                    │
+└ ⏎ next  esc back  ctrl+c quit ───────────────────────────────────────────────┘

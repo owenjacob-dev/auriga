@@ -96,6 +96,12 @@ type (
 	CloseMsg struct{}
 	// TogglePauseMsg pauses or resumes polling.
 	TogglePauseMsg struct{}
+	// OpenWizardMsg opens the setup wizard for an org (Org "" for a new
+	// one), preselecting Hosts.
+	OpenWizardMsg struct {
+		Org   string
+		Hosts []string
+	}
 	// FetchMsg asks for one admin view of a host (host detail tabs).
 	FetchMsg struct {
 		Alias string

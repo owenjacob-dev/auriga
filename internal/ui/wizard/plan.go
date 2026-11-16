@@ -47,8 +47,10 @@ var Passphrases = map[string]string{
 
 // HostFacts is what Auriga knows about a host before planning.
 type HostFacts struct {
-	// Existing is the host's adoptable config, nil for a new node.
-	Existing *stellarcfg.Config
+	// Existing is the host's adoptable config, nil for a new node, and
+	// ExistingText its redacted text (for the review diff).
+	Existing     *stellarcfg.Config
+	ExistingText []byte
 	// SeedPublicKey is the key derived on the host from its current seed,
 	// "" when it has none.
 	SeedPublicKey string
@@ -420,7 +422,11 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 			c.UnsafeQuorum = stellarcfg.Ptr(true)
 			qi.Severity = quorum.Warn
 		}
-		issues = append(issues, Issue{Step: StepQuorum, Host: h, Rule: qi.Rule, Severity: qi.Severity, Message: qi.Entry + " " + qi.Message})
+		msg := qi.Message
+		if qi.Entry != "" {
+			msg = qi.Entry + " " + msg
+		}
+		issues = append(issues, Issue{Step: StepQuorum, Host: h, Rule: qi.Rule, Severity: qi.Severity, Message: msg})
 	}
 
 	// Per-config validation, skipping keys that are pending.
@@ -442,6 +448,9 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 		return hp, issues
 	}
 	hp.Rendered = rendered
+	if f.Existing != nil && f.ExistingText != nil {
+		hp.Diff = stellarcfg.Diff("on the host now", "after the deploy", f.ExistingText, rendered)
+	}
 	return hp, issues
 }
 
