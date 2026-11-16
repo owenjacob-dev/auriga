@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	osuser "os/user"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -75,14 +76,22 @@ type Env struct {
 	Run func(ctx context.Context, name string, args ...string) ([]byte, error)
 }
 
-// DefaultEnv reads the environment of the current process.
+// DefaultEnv reads the environment of the current process. The home
+// directory comes from the password database, as OpenSSH does (it ignores
+// $HOME), so the aliases Auriga lists and the config ssh -G resolves are the
+// same file. $HOME is the fallback when the lookup fails.
 func DefaultEnv() Env {
-	home, _ := os.UserHomeDir()
-	user := os.Getenv("USER")
-	if user == "" {
-		user = os.Getenv("LOGNAME")
+	env := Env{}
+	if u, err := osuser.Current(); err == nil {
+		env.Home, env.User = u.HomeDir, u.Username
 	}
-	return Env{Home: home, User: user}
+	if env.Home == "" {
+		env.Home, _ = os.UserHomeDir()
+	}
+	if env.User == "" {
+		env.User = os.Getenv("USER")
+	}
+	return env
 }
 
 func (e Env) configPath() string {

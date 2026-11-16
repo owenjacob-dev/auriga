@@ -23,7 +23,13 @@ func readFixture(t *testing.T, name string) []byte {
 }
 
 func TestParseSSHGFull(t *testing.T) {
-	h, err := parseSSHG(readFixture(t, "ssh-G-openssh10.0-full.txt"), testEnv)
+	for _, fixture := range []string{"ssh-G-openssh10.0-full.txt", "ssh-G-openssh9.6-full.txt"} {
+		t.Run(fixture, func(t *testing.T) { testParseSSHGFull(t, fixture) })
+	}
+}
+
+func testParseSSHGFull(t *testing.T, fixture string) {
+	h, err := parseSSHG(readFixture(t, fixture), testEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,5 +250,13 @@ func writeFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDefaultEnvUsesPasswdHome(t *testing.T) {
+	t.Setenv("HOME", "/somewhere/else")
+	env := DefaultEnv()
+	if env.Home == "/somewhere/else" || env.Home == "" || env.User == "" {
+		t.Errorf("DefaultEnv = %+v; want the passwd home, not $HOME", env)
 	}
 }

@@ -52,6 +52,7 @@ The maintainer accepted the proposed defaults for all six questions.
 | The redaction marker carries the full derived public key: `NODE_SEED = "<redacted:G…56 chars…> node-alias"`. | The key is public, and M3 needs it whole to parse and compare configs; the UI abbreviates it. |
 | `StrictHostKeyChecking` `ask`, `accept-new`, `no` and `off` all prompt for unknown keys; only `yes` refuses without asking. | Hard rule 4: no way to turn off host-key checking. `accept-new` would add keys without the operator seeing the fingerprint. |
 | A host whose known keys are all of other types than the one presented is treated as a changed key (hard failure). The client offers the known key types first, so this only happens if the server lost those keys. | Conservative: never prompt where OpenSSH would warn. |
+| The ssh home directory is the one in the password database, not `$HOME`. | OpenSSH ignores `$HOME` for `~/.ssh/config`. Reading `$HOME/.ssh/config` for the alias list while `ssh -G` read the passwd home would resolve aliases against a different file; found when running the binary against the compose stack. |
 | Auth failures, host key failures, ProxyCommand and invalid aliases stop automatic reconnects until the operator presses `r`. | Retrying cannot fix them, and repeated failed logins can trip fail2ban. |
 
 ## Verifications
