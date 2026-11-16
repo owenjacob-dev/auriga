@@ -214,7 +214,7 @@ func (m *Model) buildForm() *huh.Form {
 					return nil
 				}))
 			}
-			groups = append(groups, huh.NewGroup(consent...).Title("Zero fault tolerance"))
+			groups = append(groups, huh.NewGroup(consent...).Title("Quorum safety"))
 		}
 
 	case StepHistory:
