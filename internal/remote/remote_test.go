@@ -548,3 +548,49 @@ func TestParseAdminGet(t *testing.T) {
 		t.Error("accepted output without status")
 	}
 }
+
+func TestParseAdminGetStripsHTTPCommandHeaders(t *testing.T) {
+	// Real stdout of `stellar-core http-command info` on 30.0.0.
+	rec, err := os.ReadFile("../../testdata/core/recorded/stellar-core-30.0.0/http-command-info.stdout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := parseAdminGet(append(rec, []byte("\n@@status=200 via=http-command\n")...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(bytes.TrimSpace(r.Body), []byte("{")) || bytes.Contains(r.Body, []byte("Content-Type")) {
+		t.Errorf("body starts %q", r.Body[:min(60, len(r.Body))])
+	}
+	// curl output is never touched, even if it happens to look like headers.
+	r, _ = parseAdminGet([]byte("Content-Type: x\n\nbody\n@@status=200 via=curl\n"))
+	if string(r.Body) != "Content-Type: x\n\nbody" {
+		t.Errorf("curl body changed: %q", r.Body)
+	}
+}
+
+func TestConcurrentHelpersAskForSudoOnce(t *testing.T) {
+	h := newFakeHost(t, "dash", "SHIM_SUDO=password", "SHIM_SUDO_PASSWORD=pw")
+	p := &countingPrompter{passwords: []string{"pw", "pw", "pw", "pw"}}
+	r := newDirectRunner(map[string]Conn{"a": h}, p)
+	var wg sync.WaitGroup
+	errs := make(chan error, 4)
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := r.Probe(ctx(t), "a", "/x/y.cfg", "stellar-core")
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	if len(p.asked) != 1 {
+		t.Errorf("asked for the sudo password %d times, want once", len(p.asked))
+	}
+}

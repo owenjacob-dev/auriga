@@ -206,6 +206,24 @@ func parseAdminGet(out []byte) (AdminResponse, error) {
 			r.Via = v
 		}
 	}
+	if r.Via == "http-command" {
+		out = stripHTTPHeaders(out)
+	}
 	r.Body = out
 	return r, nil
+}
+
+// stripHTTPHeaders removes the header block `stellar-core http-command`
+// prints before the body on current builds ("Content-Length: …",
+// "Content-Type: …", blank line). Output without headers is unchanged.
+func stripHTTPHeaders(out []byte) []byte {
+	if !bytes.HasPrefix(out, []byte("Content-")) && !bytes.HasPrefix(out, []byte("HTTP/")) {
+		return out
+	}
+	for _, sep := range [][]byte{[]byte("\r\n\r\n"), []byte("\n\n")} {
+		if i := bytes.Index(out, sep); i >= 0 {
+			return out[i+len(sep):]
+		}
+	}
+	return out
 }
