@@ -70,6 +70,17 @@ The maintainer accepted the proposed defaults for all six questions.
 | `apt.stellar.org` publishes amd64 packages only. | The integration image is amd64; on arm64 machines Docker runs it under QEMU user emulation. |
 | Recording 27.1.0 for decoding tests failed: a single-node SQLite setup exits with "Unable to setup the application to run". | Only 30.0.0 is recorded so far; the ledger-keyed quorum layout of older builds is covered by a synthetic fixture. |
 
+## M3 decisions (16 Nov 2026)
+
+| Decision | Reason |
+| -------- | ------ |
+| Diffs use `github.com/aymanbagabas/go-udiff`. | SPEC.md names `hexops/gotextdiff` "or equivalent". go-udiff is its maintained fork with the same unified output, and it is already in the module graph through the golden-file test library. |
+| Unknown top-level keys are rendered after the peers section and before the first table; unknown tables come last. | SPEC.md puts "preserved unknown keys" last, but TOML does not allow a plain key after a table header. Only their position changes; the text is kept verbatim (the `key = value` source, including comments inside multi-line arrays). Trailing comments on a line are dropped, like every other comment, and counted in the adoption notes. |
+| A config is "unconfigured" when the file is missing or holds only comments. | The stellar-core package ships no `stellar-core.cfg`, only examples, so there is no package default to fingerprint (this settles the "package-default config fingerprint" verification). |
+| `NODE_SEED` renders as `"<auriga-seed:MODE[:G…]> alias"`; the host reads it back as `"<redacted:G…> alias"`. | One marker form for the stage helper to replace (M5) and a fixed mapping for verifying the staged file. `Parse` refuses a plain seed. |
+| Read-only triggers: the legacy `[QUORUM_SET]`, `HISTORY`/`VALIDATORS`/`HOME_DOMAINS`/`QUORUM_SET` as inline or dotted values, and unknown keys inside `[[VALIDATORS]]`, `[[HOME_DOMAINS]]` or `[HISTORY.*]`. Other unknown keys and tables keep a config adoptable. | These are the shapes the model cannot rewrite without changing their meaning. |
+| `LOG_FILE_PATH = ""` is kept distinct from an absent key. | Empty turns file logging off; absent means the relative default, which fails under the packaged unit. |
+
 ## Verifications
 
 | Item | Milestone | Result |
@@ -77,5 +88,5 @@ The maintainer accepted the proposed defaults for all six questions.
 | How stellar-core counts the three-validator minimum for a `HIGH` org when a node lists only its siblings | M4 | Pending |
 | The helper-script stdin protocol (script, sudo password and seed on one stdin) works under dash and bash | M1 | **Changed.** dash reads a piped script in large blocks, so a secret placed after the script was swallowed by the parser and never reached the helper's `read` (bash reads byte by byte and worked). The runner now sends the secret only when the helper asks for it: `auriga_read_secret` prints a request line, and the runner writes the secret after seeing it. sh has finished reading the script by then, and a helper that never asks never receives the secret. The command stays `sudo … sh -s -- <args>`. Tested under dash and bash with the sudo shim (2026-11-16); real hosts are checked in the compose suite. |
 | `ssh -G` output across OpenSSH versions | M1 | OpenSSH 10.0 prints `StrictHostKeyChecking yes` as `true` (and `no` as `false`); the parser normalises both. 10.0 output is recorded in `internal/sshx/testdata/`; Ubuntu 24.04's OpenSSH 9.6 is added with the compose suite. |
-| Package-default config fingerprint from `apt.stellar.org` | M3 | Pending |
+| Package-default config fingerprint from `apt.stellar.org` | M3 | The package installs no `stellar-core.cfg` (only `stellar-core_example*.cfg` and others in `/etc/stellar`), so unconfigured means missing or comments only. |
 | `expirationminutes` acceptance by stellar-core build | M6 | Pending |
