@@ -138,14 +138,19 @@ func NewResolver(env Env) *Resolver {
 	return r
 }
 
-// validAlias guards the alias before it reaches argv or the library.
-func validAlias(alias string) error {
+// ErrBadAlias is returned for aliases that cannot be a concrete Host name.
+var ErrBadAlias = errors.New("invalid host alias")
+
+// ValidAlias guards an alias before it reaches argv, the library or a
+// helper script: no whitespace, control characters, quotes, glob characters
+// or leading dash.
+func ValidAlias(alias string) error {
 	if alias == "" || len(alias) > 255 || strings.HasPrefix(alias, "-") {
-		return fmt.Errorf("invalid host alias %q", alias)
+		return fmt.Errorf("%w %q", ErrBadAlias, alias)
 	}
 	for _, r := range alias {
-		if r <= ' ' || r == 0x7f || strings.ContainsRune(`*?!"'\`, r) {
-			return fmt.Errorf("invalid host alias %q", alias)
+		if r <= ' ' || r == 0x7f || strings.ContainsRune(`*?!"'\`+"`$;&|<>(){}[]", r) {
+			return fmt.Errorf("%w %q", ErrBadAlias, alias)
 		}
 	}
 	return nil
@@ -153,7 +158,7 @@ func validAlias(alias string) error {
 
 // Resolve returns the effective configuration for alias.
 func (r *Resolver) Resolve(ctx context.Context, alias string) (HostConfig, error) {
-	if err := validAlias(alias); err != nil {
+	if err := ValidAlias(alias); err != nil {
 		return HostConfig{}, err
 	}
 	var (
@@ -373,7 +378,7 @@ func ParseProxyJump(v string) ([]JumpHop, error) {
 		} else {
 			hop.Host = part
 		}
-		if err := validAlias(hop.Host); err != nil {
+		if err := ValidAlias(hop.Host); err != nil {
 			return nil, fmt.Errorf("bad ProxyJump hop: %w", err)
 		}
 		hops = append(hops, hop)

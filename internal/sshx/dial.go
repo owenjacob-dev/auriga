@@ -280,3 +280,43 @@ func isTimeout(err error) bool {
 	var ne net.Error
 	return errors.As(err, &ne) && ne.Timeout()
 }
+
+// ExitError is a remote command that ran and exited non-zero.
+type ExitError struct {
+	Status int
+}
+
+func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Status) }
+
+// Exec runs cmd in a new session with the given stdio and waits for it.
+// When ctx ends the session is closed (the remote process gets SIGHUP when
+// sshd notices). A non-zero exit is reported as *ExitError.
+func (c *Conn) Exec(ctx context.Context, cmd string, stdin io.Reader, stdout, stderr io.Writer) error {
+	sess, err := c.NewSession()
+	if err != nil {
+		return fmt.Errorf("open session: %w", err)
+	}
+	defer sess.Close() //nolint:errcheck
+	sess.Stdin, sess.Stdout, sess.Stderr = stdin, stdout, stderr
+	if err := sess.Start(cmd); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- sess.Wait() }()
+	select {
+	case err = <-done:
+	case <-ctx.Done():
+		sess.Signal(ssh.SIGKILL) //nolint:errcheck,gosec
+		sess.Close()             //nolint:errcheck,gosec
+		return ctx.Err()
+	}
+	var ee *ssh.ExitError
+	switch {
+	case err == nil:
+		return nil
+	case errors.As(err, &ee):
+		return &ExitError{Status: ee.ExitStatus()}
+	default:
+		return err
+	}
+}

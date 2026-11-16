@@ -46,7 +46,7 @@ func listFile(env Env, path string, depth int, add func(string)) error {
 		switch keyword {
 		case "host":
 			for _, a := range args {
-				if !strings.ContainsAny(a, "*?!") && validAlias(a) == nil {
+				if !strings.ContainsAny(a, "*?!") && ValidAlias(a) == nil {
 					add(a)
 				}
 			}
