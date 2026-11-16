@@ -55,6 +55,18 @@ The maintainer accepted the proposed defaults for all six questions.
 | The ssh home directory is the one in the password database, not `$HOME`. | OpenSSH ignores `$HOME` for `~/.ssh/config`. Reading `$HOME/.ssh/config` for the alias list while `ssh -G` read the passwd home would resolve aliases against a different file; found when running the binary against the compose stack. |
 | Auth failures, host key failures, ProxyCommand and invalid aliases stop automatic reconnects until the operator presses `r`. | Retrying cannot fix them, and repeated failed logins can trip fail2ban. |
 
+## M2 findings from real stellar-core 30.0.0 (16 Nov 2026)
+
+| Finding | Consequence |
+| ------- | ----------- |
+| `gen-seed` and `sec-to-pub` reject `--conf` ("Unrecognised token: --conf"); `version`, `http-command` and `new-hist` accept it. | **Correction to SPEC.md "CLI commands run on hosts" and CLAUDE.md**, which say every command runs as `sudo -u stellar stellar-core --conf <path> <command>`. Those two commands run as `sudo -u stellar stellar-core <command>`; everything else keeps `--conf`. The test shim now rejects `--conf` for them too. |
+| Listing a node in its own `[[VALIDATORS]]` with `NAME` equal to its `NODE_SEED` alias fails to start: "name already used". With siblings only and `QUALITY="MEDIUM"`, core builds a qset of all three nodes (`agree: 3`, `fail_at: 2`). | Supports the spec's "siblings only" decision. The `HIGH` three-validator count is still verified in M4. |
+| Quorum and peers responses name nodes by their configured alias (`itest-b`) when known, otherwise by `G…` key. `info.quorum.node` is the alias. | The UI shows whichever it gets and maps known keys to inventory aliases. |
+| `upgrades?mode=get` returns every field, with `{"nullopt": true}` for unset ones and `"time": 0` when nothing is scheduled. | The Upgrades tab hides unset fields. |
+| `http-command` writes HTTP headers (`Content-Length`, `Content-Type`, then `\r\n\n`) before the body on stdout, and log lines on stderr. | The fallback strips the header block. |
+| `apt.stellar.org` publishes amd64 packages only. | The integration image is amd64; on arm64 machines Docker runs it under QEMU user emulation. |
+| Recording 27.1.0 for decoding tests failed: a single-node SQLite setup exits with "Unable to setup the application to run". | Only 30.0.0 is recorded so far; the ledger-keyed quorum layout of older builds is covered by a synthetic fixture. |
+
 ## Verifications
 
 | Item | Milestone | Result |

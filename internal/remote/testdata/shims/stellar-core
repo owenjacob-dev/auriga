@@ -1,12 +1,22 @@
 #!/bin/sh
-# Test shim for stellar-core. Logs its argv to $SHIM_LOG.
+# Test shim for stellar-core. Logs its argv to $SHIM_LOG. Like stellar-core
+# 30, gen-seed and sec-to-pub reject --conf.
 printf '%s\n' "stellar-core $*" >>"${SHIM_LOG:-/dev/null}"
+conf=0
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--conf) shift 2 ;;
+	--conf) conf=1; shift 2 ;;
 	*) break ;;
 	esac
 done
+case "$1" in
+gen-seed | sec-to-pub)
+	if [ $conf = 1 ]; then
+		echo "Unrecognised token: --conf" >&2
+		exit 1
+	fi
+	;;
+esac
 case "$1" in
 version)
 	echo "stellar-core 30.0.0 (shim)"
