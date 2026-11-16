@@ -21,4 +21,4 @@
 │ NODE_IS_VALIDATOR=true                                                       │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · ssh connected · ssh tunnel                                          │
-└ tab next  r refresh  d diff  esc back  ? help  q quit ───────────────────────┘
+└ tab next  r refresh  d diff  R restore a backup  esc back  ? help  q quit ───┘

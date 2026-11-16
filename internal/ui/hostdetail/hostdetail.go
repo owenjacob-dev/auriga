@@ -89,6 +89,7 @@ var (
 	kScroll     = key.NewBinding(key.WithKeys("up", "down", "j", "k", "pgup", "pgdown"), key.WithHelp("↑↓", "scroll"))
 	kBack       = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back"))
 	kDiff       = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
+	kRestore    = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restore a backup"))
 )
 
 // Keys implements ui.Screen.
@@ -99,6 +100,9 @@ func (m *Model) Keys() []key.Binding {
 	}
 	if m.tab == TabConfig {
 		keys = append(keys, kDiff)
+		if h := m.host(); h != nil && len(h.Backups) > 0 {
+			keys = append(keys, kRestore)
+		}
 	}
 	if m.raw() != nil {
 		keys = append(keys, kCopy)
@@ -117,6 +121,7 @@ func (m *Model) FullHelp() []key.Binding {
 		long(kTransitive, "Quorum tab: run the network-wide intersection check"),
 		long(kCopy, "Copy this tab's raw JSON to the clipboard (OSC 52)"),
 		long(kDiff, "Config tab: switch between the file and what a first deploy changes"),
+		long(kRestore, "Config tab: compare a backup with the config and restore it"),
 		long(kBack, "Back to the dashboard"),
 	}
 }
@@ -206,6 +211,10 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 			if m.tab == TabConfig {
 				m.showDiff = !m.showDiff
 				m.scroll[TabConfig] = 0
+			}
+		case "R":
+			if h := m.host(); m.tab == TabConfig && h != nil && len(h.Backups) > 0 {
+				return m, ui.Emit(ui.OpenRestoreMsg{Alias: m.alias})
 			}
 		case "c":
 			if raw := m.raw(); raw != nil {
@@ -770,4 +779,11 @@ func wrap(text string, width int) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+func (m *Model) host() *ui.HostView {
+	if m.fleet == nil {
+		return nil
+	}
+	return m.fleet.Host(m.alias)
 }

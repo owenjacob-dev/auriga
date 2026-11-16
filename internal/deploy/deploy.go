@@ -51,6 +51,13 @@ type Target struct {
 	Running bool
 	// HTTPPort is the admin port in the render, used by the gates.
 	HTTPPort int
+
+	// RestoreFrom makes this a manual rollback (SPEC.md "Manual
+	// rollback"): the backup at this path is staged on the host, seed and
+	// all, instead of a render. Expected is that backup as read-config
+	// returns it, with the seed redacted; the staged file must match it.
+	RestoreFrom string
+	Expected    []byte
 }
 
 // SeedSourceOf is where the stage helper takes t's seed from.
@@ -72,6 +79,9 @@ func (t Target) source() remote.SeedSource {
 // expected is the render as read-config returns the staged file: the seed
 // marker replaced by the redacted form with pk.
 func (t Target) expected(pk string) []byte {
+	if t.RestoreFrom != "" {
+		return t.Expected
+	}
 	if t.Seed == nil {
 		return t.Rendered
 	}
@@ -87,6 +97,8 @@ type Ops interface {
 	Preflight(ctx context.Context, t Target) (remote.Preflight, error)
 	GenSeed(ctx context.Context, t Target) (string, error)
 	Stage(ctx context.Context, t Target) (remote.Staged, error)
+	// StageBackup stages t.RestoreFrom and returns the staged sha256.
+	StageBackup(ctx context.Context, t Target) (string, error)
 	// ReadStaged reads the staged file with its seed redacted on the host.
 	ReadStaged(ctx context.Context, t Target) (remote.RedactedConfig, error)
 	Backup(ctx context.Context, t Target) (string, error)
@@ -407,6 +419,11 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 	})
 	if err == nil {
 		err = run(StepStage, st, func(ctx context.Context) (string, error) {
+			if t.RestoreFrom != "" {
+				sum, err := c.ops.StageBackup(ctx, t)
+				staged.SHA256 = sum
+				return "copied " + t.RestoreFrom, err
+			}
 			s, err := c.ops.Stage(ctx, t)
 			if err != nil {
 				return "", err
@@ -415,11 +432,11 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 			staged = s
 			return "sha256 " + short(s.SHA256), nil
 		})
-		c.audit(t, "deploy.stage", audit.Entry{ConfigSHA256: staged.SHA256, PublicKey: staged.PublicKey}, err)
+		c.audit(t, c.action(t, "stage"), audit.Entry{ConfigSHA256: staged.SHA256, PublicKey: staged.PublicKey, Backup: t.RestoreFrom}, err)
 	}
 	if err == nil {
 		err = run(StepVerify, st, func(ctx context.Context) (string, error) {
-			if t.Seed != nil && t.Seed.PublicKey != "" && staged.PublicKey != t.Seed.PublicKey {
+			if t.RestoreFrom == "" && t.Seed != nil && t.Seed.PublicKey != "" && staged.PublicKey != t.Seed.PublicKey {
 				return "", fmt.Errorf("the staged seed is %s, the review expected %s", staged.PublicKey, t.Seed.PublicKey)
 			}
 			rc, err := c.ops.ReadStaged(ctx, t)
@@ -427,7 +444,7 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 				return "", err
 			}
 			if want := t.expected(staged.PublicKey); !bytes.Equal(rc.Text, want) {
-				return "", fmt.Errorf("the staged file differs from the reviewed render at line %d", firstDiffLine(rc.Text, want))
+				return "", fmt.Errorf("the staged file differs from what was reviewed at line %d", firstDiffLine(rc.Text, want))
 			}
 			return "matches the review", nil
 		})
@@ -442,7 +459,7 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 			}
 			return b, err
 		})
-		c.audit(t, "deploy.backup", audit.Entry{Backup: backup}, err)
+		c.audit(t, c.action(t, "backup"), audit.Entry{Backup: backup}, err)
 	}
 	if err != nil {
 		finish(Unchanged, err.Error())
@@ -458,7 +475,7 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 		}
 		return "sha256 " + short(sum), err
 	})
-	c.audit(t, "deploy.install", audit.Entry{ConfigSHA256: installed, Backup: backup}, err)
+	c.audit(t, c.action(t, "install"), audit.Entry{ConfigSHA256: installed, Backup: backup}, err)
 	if err != nil {
 		if installed == "" {
 			// The rename did not happen.
@@ -477,7 +494,7 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 		err = run(StepInit, c.opt.InitTimeout, func(ctx context.Context) (string, error) {
 			return name, c.ops.Init(ctx, t, in)
 		})
-		c.audit(t, "deploy."+string(in.Kind), audit.Entry{Detail: in.Archive}, err)
+		c.audit(t, c.action(t, string(in.Kind)), audit.Entry{Detail: in.Archive}, err)
 		if err != nil {
 			return c.rollback(ctx, t, backup, err, finish)
 		}
@@ -489,7 +506,7 @@ func (c *Coordinator) host(ctx context.Context, t Target) error {
 		a, err := c.ops.Restart(ctx, t)
 		return "unit " + a, err
 	})
-	c.audit(t, "deploy.restart", audit.Entry{}, err)
+	c.audit(t, c.action(t, "restart"), audit.Entry{}, err)
 	if err == nil {
 		err = run(StepHealth, c.opt.HealthTimeout+st, func(ctx context.Context) (string, error) { return c.health(ctx, t) })
 	}
@@ -526,7 +543,7 @@ func (c *Coordinator) rollback(ctx context.Context, t Target, backup string, cau
 	if err == nil && backup != "" && active != "active" {
 		err = fmt.Errorf("the unit is %q after the restore", active)
 	}
-	c.audit(t, "deploy.rollback", audit.Entry{Backup: backup, Detail: cause.Error()}, err)
+	c.audit(t, c.action(t, "rollback"), audit.Entry{Backup: backup, Detail: cause.Error()}, err)
 	if err != nil {
 		c.emit(Event{Host: t.Alias, Step: StepRollback, Status: Failed, Detail: err.Error()})
 		finish(RollbackFailed, fmt.Sprintf("%v; rollback: %v", cause, err))
@@ -646,6 +663,15 @@ func (c *Coordinator) quorumCheck(ctx context.Context, t Target) error {
 	}
 	c.emit(Event{Host: t.Alias, Step: StepQuorum, Status: Done, Detail: "intersection ok"})
 	return nil
+}
+
+// action names an audit action: "deploy.<step>", or "restore.<step>" for
+// a manual rollback.
+func (c *Coordinator) action(t Target, step string) string {
+	if t.RestoreFrom != "" {
+		return "restore." + step
+	}
+	return "deploy." + step
 }
 
 func (c *Coordinator) audit(t Target, action string, e audit.Entry, err error) {

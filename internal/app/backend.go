@@ -67,6 +67,7 @@ type Backend interface {
 type AuditLog interface {
 	Append(audit.Entry) error
 	Read() ([]audit.Entry, int, error)
+	Path() string
 }
 
 // LiveBackend is the real Backend: an SSH pool, the helper runner, the

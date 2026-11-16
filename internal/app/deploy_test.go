@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"slices"
 	"strings"
@@ -72,12 +73,18 @@ func (o *scriptedOps) Stage(_ context.Context, t deploy.Target) (remote.Staged, 
 	return remote.Staged{SHA256: strings.Repeat("a", 64), PublicKey: pk}, nil
 }
 
+func (o *scriptedOps) StageBackup(_ context.Context, t deploy.Target) (string, error) {
+	return strings.Repeat("a", 64), o.call(t, "stage-backup "+t.RestoreFrom)
+}
+
 func (o *scriptedOps) ReadStaged(_ context.Context, t deploy.Target) (remote.RedactedConfig, error) {
 	if err := o.call(t, "read-staged"); err != nil {
 		return remote.RedactedConfig{}, err
 	}
 	text := t.Rendered
-	if t.Seed != nil {
+	if t.RestoreFrom != "" {
+		text = t.Expected
+	} else if t.Seed != nil {
 		s := *t.Seed
 		text = []byte(strings.Replace(string(text), `NODE_SEED = "`+s.SeedMarker()+`"`, `NODE_SEED = "`+(stellarcfg.Seed{PublicKey: s.PublicKey, Alias: s.Alias}).Redacted()+`"`, 1))
 	}
@@ -154,6 +161,8 @@ func (l *memAuditLog) Append(e audit.Entry) error {
 	return nil
 }
 
+func (l *memAuditLog) Path() string { return "/state/auriga/audit.log" }
+
 func (l *memAuditLog) Read() ([]audit.Entry, int, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -225,4 +234,63 @@ func deployFromReview(t *testing.T, m Model, b *fakeBackend, plan *wizard.Plan) 
 		t.Fatal("closing the deploy did not return to the wizard")
 	}
 	return m
+}
+
+// TestRestoreBackupThenAuditLog is the manual rollback: Config tab → R →
+// pick a backup → its diff → the deploy screen runs steps 4 to 10 with it;
+// then l on the dashboard shows the steps in the audit log.
+func TestRestoreBackupThenAuditLog(t *testing.T) {
+	cmdWait = 15 * time.Millisecond
+	t.Cleanup(func() { cmdWait = 100 * time.Millisecond })
+	const bak = "/etc/stellar/stellar-core.cfg.auriga-20261101T090000Z.bak"
+	b := newFakeBackend(testInventory("acme-a"))
+	b.facts["acme-a"] = healthyFacts
+	now := cfgText("acme.example", "Test SDF Network ; September 2015")
+	old := bytes.Replace(now, []byte("HTTP_PORT=11626"), []byte("HTTP_PORT=11626\nCATCHUP_RECENT=100"), 1)
+	b.configs["acme-a"] = remote.RedactedConfig{PublicKey: pubA, Seed: remote.SeedPresent, NodeAlias: "acme-a", Text: now}
+	b.configs["acme-a|"+bak] = remote.RedactedConfig{PublicKey: pubA, Seed: remote.SeedPresent, NodeAlias: "acme-a", Text: old}
+	b.backups["acme-a"] = []remote.Backup{{Path: bak, Time: time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC), Size: int64(len(old)), Owner: "root:stellar", Mode: "640"}}
+	m := startModel(t, b)
+	m = step(t, m, connected("acme-a"))
+
+	m = keys(t, m, "enter", "tab", "tab", "tab", "tab") // detail → Config tab
+	if out := screen(m); !strings.Contains(out, "R restore a backup") {
+		t.Fatalf("no restore key on the Config tab:\n%s", out)
+	}
+	m = keys(t, m, "R", "enter")
+	out := screen(m)
+	if !strings.Contains(out, "Restore "+bak) || !strings.Contains(out, "+CATCHUP_RECENT=100") {
+		t.Fatalf("restore diff:\n%s", out)
+	}
+	t.Run("restore-diff", func(t *testing.T) { golden.RequireEqual(t, out) })
+	if len(b.ops.Calls()) != 0 {
+		t.Fatal("a host changed before the restore was confirmed")
+	}
+
+	cmdWait = 500 * time.Millisecond
+	m = keys(t, m, "enter")
+	if out := screen(m); !strings.Contains(out, "Restore acme-a from stellar-core.cfg.auriga-20261101T090000Z.bak") || !strings.Contains(out, "1 changed line") {
+		t.Fatalf("restore confirmation:\n%s", out)
+	}
+	m = keys(t, m, "enter")
+	cmdWait = 15 * time.Millisecond
+	if out := screen(m); !strings.Contains(out, "Finished: 1 of 1 deployed") {
+		t.Fatalf("restore result:\n%s", out)
+	}
+	if calls := b.ops.Calls(); !slices.Contains(calls, "acme-a/stage-backup "+bak) || slices.Contains(calls, "acme-a/stage") {
+		t.Errorf("calls %v", calls)
+	}
+
+	m = keys(t, m, "esc", "esc", "esc", "esc", "l")
+	out = screen(m)
+	for _, want := range []string{"restore.stage", "restore.install", "bak 20261101T0900", "4 entries · /state/auriga/audit.log"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("audit log lacks %q:\n%s", want, out)
+		}
+	}
+	t.Run("audit-log", func(t *testing.T) { golden.RequireEqual(t, out) })
+	m = keys(t, m, "/", "install", "enter")
+	if out := screen(m); !strings.Contains(out, "1 of 4 entries match") || strings.Contains(out, "restore.stage") {
+		t.Errorf("filter:\n%s", out)
+	}
 }

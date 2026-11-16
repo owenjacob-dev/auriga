@@ -21,4 +21,4 @@
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · ssh connected · ssh tunnel · last info 0s ago                       │
-└ a add  s setup  ⏎ detail  r refresh  p pause  ? help  q quit ────────────────┘
+└ a add  s setup  ⏎ detail  r refresh  l log  ? help  q quit ──────────────────┘

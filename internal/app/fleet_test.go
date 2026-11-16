@@ -93,7 +93,10 @@ func (f *fakeBackend) Reconnect(a string) {
 func (f *fakeBackend) Probe(_ context.Context, a, _, _ string) (remote.ProbeFacts, error) {
 	return f.facts[a], f.probeErr[a]
 }
-func (f *fakeBackend) ReadConfig(_ context.Context, a, _ string) (remote.RedactedConfig, error) {
+func (f *fakeBackend) ReadConfig(_ context.Context, a, path string) (remote.RedactedConfig, error) {
+	if c, ok := f.configs[a+"|"+path]; ok { // a specific file, e.g. a backup
+		return c, nil
+	}
 	if c, ok := f.configs[a]; ok {
 		return c, nil
 	}

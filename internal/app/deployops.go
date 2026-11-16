@@ -27,6 +27,10 @@ func (o liveOps) Stage(ctx context.Context, t deploy.Target) (remote.Staged, err
 	return o.b.runner.Stage(ctx, t.Alias, t.ConfigPath, t.Rendered, src, t.Import)
 }
 
+func (o liveOps) StageBackup(ctx context.Context, t deploy.Target) (string, error) {
+	return o.b.runner.StageBackup(ctx, t.Alias, t.ConfigPath, t.RestoreFrom)
+}
+
 func (o liveOps) ReadStaged(ctx context.Context, t deploy.Target) (remote.RedactedConfig, error) {
 	return o.b.runner.ReadConfig(ctx, t.Alias, t.ConfigPath+remote.StagedSuffix)
 }

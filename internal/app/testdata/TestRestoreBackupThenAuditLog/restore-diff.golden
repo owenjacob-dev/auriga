@@ -1,0 +1,24 @@
+┌ auriga · restore a backup · acme-a ──────────────────────────── 14:02:11 UTC ┐
+│ Restore /etc/stellar/stellar-core.cfg.auriga-20261101T090000Z.bak            │
+│                                                                              │
+│ Node key in the backup: GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC… │
+│                                                                              │
+│ --- on the host now                                                          │
+│ +++ after the restore                                                        │
+│ @@ -3,6 +3,7 @@                                                              │
+│  NODE_IS_VALIDATOR=true                                                      │
+│  NODE_HOME_DOMAIN="acme.example"                                             │
+│  HTTP_PORT=11626                                                             │
+│ +CATCHUP_RECENT=100                                                          │
+│  PUBLIC_HTTP_PORT=false                                                      │
+│  DATABASE="postgresql://dbname=stellar user=stellar"                         │
+│  BUCKET_DIR_PATH="/var/lib/stellar/buckets"                                  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ⏎ opens the deploy: it backs up the current config first, and rolls back if… │
+└ ⏎ restore this backup  ↑↓ move  esc back  ? help  q quit ────────────────────┘

@@ -56,7 +56,7 @@ func visibleColumns(width int) []int {
 }
 
 type keys struct {
-	Up, Down, Open, Add, Refresh, Remove, Pause, Setup key.Binding
+	Up, Down, Open, Add, Refresh, Remove, Pause, Setup, Log key.Binding
 }
 
 func newKeys() keys {
@@ -69,6 +69,7 @@ func newKeys() keys {
 		Remove:  key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "remove")),
 		Pause:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
 		Setup:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "setup")),
+		Log:     key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
 	}
 }
 
@@ -99,7 +100,7 @@ func (m *Model) Keys() []key.Binding {
 		}
 	}
 	k := m.keys
-	return []key.Binding{k.Add, k.Setup, k.Open, k.Refresh, k.Pause}
+	return []key.Binding{k.Add, k.Setup, k.Open, k.Refresh, k.Log}
 }
 
 // SetFleet implements ui.FleetAware.
@@ -139,6 +140,7 @@ func (m *Model) FullHelp() []key.Binding {
 		long(k.Setup, "s", "Setup wizard for the selected host's org"),
 		long(k.Refresh, "r", "Poll and probe now, or reconnect a disconnected host"),
 		long(k.Pause, "p", "Pause or resume polling"),
+		long(k.Log, "l", "Audit log of every change Auriga made to a host"),
 		long(k.Remove, "x", "Remove the host from the inventory (local only)"),
 	}
 }
@@ -184,6 +186,8 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return m, ui.Emit(ui.TogglePauseMsg{})
 	case key.Matches(km, m.keys.Setup):
 		return m, ui.Emit(m.wizardFor())
+	case key.Matches(km, m.keys.Log):
+		return m, ui.Emit(ui.OpenAuditMsg{})
 	case i < 0:
 		return m, nil
 	case key.Matches(km, m.keys.Up):

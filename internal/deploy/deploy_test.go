@@ -85,6 +85,10 @@ func (f *fakeOps) Stage(_ context.Context, t Target) (remote.Staged, error) {
 	return remote.Staged{SHA256: sha, PublicKey: pk}, nil
 }
 
+func (f *fakeOps) StageBackup(_ context.Context, t Target) (string, error) {
+	return sha, f.call(t, "stage-backup "+t.RestoreFrom)
+}
+
 func (f *fakeOps) ReadStaged(_ context.Context, t Target) (remote.RedactedConfig, error) {
 	if err := f.call(t, "read-staged"); err != nil {
 		return remote.RedactedConfig{}, err
@@ -377,7 +381,7 @@ func TestVerifyCatchesDifferences(t *testing.T) {
 	}{
 		{"edited text", func(o *fakeOps, t *Target) {
 			o.staged[t.Alias] = strings.Replace(string(t.expected(pkA)), "11626", "11627", 1)
-		}, "differs from the reviewed render at line 4"},
+		}, "differs from what was reviewed at line 4"},
 		{"other key", func(_ *fakeOps, t *Target) { t.Seed.PublicKey = pkB }, "the staged seed is " + pkB},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -640,5 +644,31 @@ func TestExpectedRedaction(t *testing.T) {
 	tg.Seed = nil
 	if string(tg.expected("")) != string(tg.Rendered) {
 		t.Error("no seed")
+	}
+}
+
+func TestManualRestore(t *testing.T) {
+	const bak = "/etc/stellar/stellar-core.cfg.auriga-20261101T090000Z.bak"
+	tg := Target{Alias: "acme-a", ConfigPath: "/etc/stellar/stellar-core.cfg", Service: "stellar-core", Running: true,
+		RestoreFrom: bak, Expected: []byte("NODE_SEED = \"<redacted:" + pkA + "> acme-a\"\n")}
+	ops, au := newOps(tg), &memAudit{}
+	c := New(ops, au, []Target{tg}, fast(), func(Event) {})
+	if err := c.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !ops.did("acme-a/stage-backup "+bak) || ops.did("acme-a/stage") || c.Outcomes()["acme-a"] != Deployed {
+		t.Errorf("%v %v", ops.calls, c.Outcomes())
+	}
+	want := []string{"acme-a restore.stage ok", "acme-a restore.backup ok", "acme-a restore.install ok", "acme-a restore.restart ok"}
+	if !slices.Equal(au.actions(), want) || au.entries[0].Backup != bak {
+		t.Errorf("audit %v", au.entries)
+	}
+
+	// The staged copy must read back exactly as the backup did.
+	ops = newOps(tg)
+	ops.staged["acme-a"] = "NODE_SEED = \"<redacted:" + pkB + "> acme-a\"\n"
+	err := New(ops, nil, []Target{tg}, fast(), func(Event) {}).Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "differs from what was reviewed at line 1") || ops.did("acme-a/install") {
+		t.Errorf("%v %v", err, ops.calls)
 	}
 }

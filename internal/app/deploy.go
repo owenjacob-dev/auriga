@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,7 +14,9 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/secret"
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui"
+	"github.com/owenjacob-dev/auriga/internal/ui/auditview"
 	"github.com/owenjacob-dev/auriga/internal/ui/deployview"
+	"github.com/owenjacob-dev/auriga/internal/ui/restoreview"
 	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
 )
 
@@ -159,6 +162,36 @@ func (m Model) openDeploy(msg wizard.DeployMsg) (Model, tea.Cmd) {
 	return m, m.Push(deployview.New(req))
 }
 
+// openRestore opens the deploy screen for a manual rollback to a backup.
+func (m Model) openRestore(msg restoreview.RestoreMsg) (Model, tea.Cmd) {
+	ih, hv := m.inv.Host(msg.Alias), m.fleet.Host(msg.Alias)
+	if ih == nil || hv == nil {
+		return m, nil
+	}
+	if m.run != nil {
+		m.fleet.Flash = "A deploy is already running."
+		return m, nil
+	}
+	t := deploy.Target{Alias: msg.Alias, ConfigPath: ih.ConfigPath, Service: ih.Service, HTTPPort: ih.HTTPPort,
+		Running: hv.Probe != nil && hv.Probe.ServiceActive == "active", RestoreFrom: msg.Path, Expected: msg.Backup.Text}
+	if t.HTTPPort == 0 {
+		t.HTTPPort = DefaultHTTPPort
+	}
+	if res, err := stellarcfg.Parse(msg.Backup.Text); err == nil && res.Config.HTTPPort != nil {
+		t.HTTPPort = *res.Config.HTTPPort
+	}
+	m.dropPending()
+	m.pending = &pendingDeploy{targets: []deploy.Target{t}, opt: deploy.Options{Org: ih.Org, Network: hv.Network}}
+	seed := "the backup's seed"
+	if msg.Backup.PublicKey != "" {
+		seed += " (" + msg.Backup.PublicKey[:8] + "…)"
+	}
+	return m, m.Push(deployview.New(deployview.Request{
+		Title: "Restore " + msg.Alias + " from " + filepath.Base(msg.Path), Org: ih.Org, Network: hv.Network,
+		Hosts: []deployview.Host{{Alias: msg.Alias, Running: t.Running, Seed: seed, Changes: msg.Changes}},
+	}))
+}
+
 // handleDeploy runs the deploy screen's requests.
 func (m Model) handleDeploy(msg tea.Msg) (Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
@@ -216,6 +249,36 @@ func (m Model) handleDeploy(msg tea.Msg) (Model, tea.Cmd, bool) {
 			m.run = nil
 		}
 		return m, tea.Batch(append(cmds, cmd)...), true
+
+	case ui.OpenAuditMsg:
+		return m, m.Push(auditview.New()), true
+	case auditview.LoadMsg:
+		if m.backend == nil {
+			return m, ui.Emit(auditview.LoadedMsg{}), true
+		}
+		l := m.backend.AuditLog()
+		return m, func() tea.Msg {
+			e, bad, err := l.Read()
+			return auditview.LoadedMsg{Entries: e, Bad: bad, Path: l.Path(), Err: err}
+		}, true
+
+	case ui.OpenRestoreMsg:
+		return m, m.Push(restoreview.New(msg.Alias)), true
+	case restoreview.ReadBackupMsg:
+		ih := m.inv.Host(msg.Alias)
+		if ih == nil || m.backend == nil {
+			return m, nil, true
+		}
+		b := m.backend
+		return m, func() tea.Msg {
+			ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+			defer cancel()
+			rc, err := b.ReadConfig(ctx, msg.Alias, msg.Path)
+			return restoreview.BackupReadMsg{Alias: msg.Alias, Path: msg.Path, Config: rc, Err: err}
+		}, true
+	case restoreview.RestoreMsg:
+		next, cmd := m.openRestore(msg)
+		return next, cmd, true
 
 	case deployview.StopWaitingMsg:
 		if r := m.run; r != nil {

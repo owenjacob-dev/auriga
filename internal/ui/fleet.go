@@ -100,6 +100,10 @@ type (
 	CloseMsg struct{}
 	// TogglePauseMsg pauses or resumes polling.
 	TogglePauseMsg struct{}
+	// OpenRestoreMsg opens the manual rollback screen for a host.
+	OpenRestoreMsg struct{ Alias string }
+	// OpenAuditMsg opens the audit log.
+	OpenAuditMsg struct{}
 	// OpenWizardMsg opens the setup wizard for an org (Org "" for a new
 	// one), preselecting Hosts.
 	OpenWizardMsg struct {

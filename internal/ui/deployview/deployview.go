@@ -32,6 +32,8 @@ type Host struct {
 
 // Request opens the screen.
 type Request struct {
+	// Title replaces the default heading (a restore names its backup).
+	Title        string
 	Org, Network string
 	Hosts        []Host
 	// AllowParallel offers "all at once" (testnet, or no host running).
@@ -298,8 +300,12 @@ func (m *Model) mode() string {
 }
 
 func (m *Model) confirmView(t theme.Theme, cols int) []string {
+	title := fmt.Sprintf("Deploy %s to %d host(s) on %s", m.req.Org, len(m.hosts), m.req.Network)
+	if m.req.Title != "" {
+		title = m.req.Title
+	}
 	out := []string{
-		t.Header.Render(fmt.Sprintf("Deploy %s to %d host(s) on %s", m.req.Org, len(m.hosts), m.req.Network)),
+		t.Header.Render(title),
 		"Order: " + m.mode(),
 		"",
 	}
@@ -314,7 +320,7 @@ func (m *Model) confirmView(t theme.Theme, cols int) []string {
 		}
 		line := fmt.Sprintf("  %-14s %s · %s", h.Alias, what, h.Seed)
 		if !h.New {
-			line += fmt.Sprintf(" · %d changed lines", h.Changes)
+			line += fmt.Sprintf(" · %d changed line%s", h.Changes, map[bool]string{true: "", false: "s"}[h.Changes == 1])
 		}
 		out = append(out, line)
 		for _, in := range h.Inits {
