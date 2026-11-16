@@ -208,5 +208,9 @@ func (p *Preset) Summary() string {
 	if p.Overridden {
 		src = "refreshed"
 	}
-	return fmt.Sprintf("%d orgs, %d validators (%s, snapshot %s)", len(p.HomeDomains), len(p.Validators), src, p.Snapshot)
+	orgs := "orgs"
+	if len(p.HomeDomains) == 1 {
+		orgs = "org"
+	}
+	return fmt.Sprintf("%d %s, %d validators (%s, snapshot %s)", len(p.HomeDomains), orgs, len(p.Validators), src, p.Snapshot)
 }

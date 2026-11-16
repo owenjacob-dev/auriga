@@ -87,15 +87,15 @@ func Check(cfg *stellarcfg.Config, self Self, opt CheckOptions) []Issue {
 
 	if set := Generate(cfg, self); set != nil {
 		if set.Size() < 4 {
-			add(Warn, "few-entities", "quorum set", "has %d top-level entities; SDF recommends at least four", set.Size())
+			add(Warn, "few-entities", "", "only %d top-level entities; SDF recommends at least four", set.Size())
 		}
 		if set.Tolerance() < MinTolerance {
 			sev := NeedsConsent
 			if cfg.UnsafeQuorum != nil && *cfg.UnsafeQuorum {
 				sev = Warn
 			}
-			add(sev, "zero-tolerance", "quorum set",
-				"%d of %d at the top level tolerates no failures; stellar-core starts only with UNSAFE_QUORUM=true", set.Threshold, set.Size())
+			add(sev, "zero-tolerance", "",
+				"tolerates no failures (%d of %d at the top); stellar-core needs UNSAFE_QUORUM=true", set.Threshold, set.Size())
 		}
 	}
 
