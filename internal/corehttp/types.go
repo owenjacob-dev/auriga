@@ -177,11 +177,42 @@ func (c CountOrList) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.Count)
 }
 
-// QuorumResponse is the body of `quorum?compact=false`.
+// QuorumResponse is the body of `quorum?compact=false`, or of
+// `quorum?compact=false&transitive=true`. The transitive form (core 30) puts
+// the intersection summary at the top level next to a list of every node in
+// the transitive quorum, and has no qset; UnmarshalJSON fills Transitive and
+// Nodes from it.
 type QuorumResponse struct {
-	Node       string      `json:"node"`
-	QSet       *QSetStatus `json:"qset"`
-	Transitive *Transitive `json:"transitive"`
+	Node       string           `json:"node"`
+	QSet       *QSetStatus      `json:"qset"`
+	Transitive *Transitive      `json:"transitive"`
+	Nodes      []TransitiveNode `json:"nodes"`
+}
+
+// TransitiveNode is one node in the transitive quorum.
+type TransitiveNode struct {
+	Node     string     `json:"node"`
+	Distance int        `json:"distance"`
+	Status   string     `json:"status"` // "tracking", "missing", …
+	Heard    uint64     `json:"heard"`  // last ledger heard from
+	QSet     *QSetValue `json:"qset"`
+}
+
+// UnmarshalJSON accepts both quorum layouts.
+func (q *QuorumResponse) UnmarshalJSON(b []byte) error {
+	type plain QuorumResponse
+	var p plain
+	if err := json.Unmarshal(b, &p); err != nil {
+		return err
+	}
+	if p.Transitive == nil {
+		var top Transitive
+		if err := json.Unmarshal(b, &top); err == nil && top.Intersection != nil {
+			p.Transitive = &top
+		}
+	}
+	*q = QuorumResponse(p)
+	return nil
 }
 
 // PeersResponse is the body of `peers`.
@@ -208,7 +239,34 @@ type Peer struct {
 
 // UpgradesResponse is the body of `upgrades?mode=get`: the scheduled
 // parameters. Field names vary by build, so the values are kept as a map.
+// Builds send every field; unset ones are {"nullopt": true}.
 type UpgradesResponse map[string]json.RawMessage
+
+// Scheduled returns the fields that are actually set, as compact JSON text:
+// unset ({"nullopt": true}) fields, a zero time and the format version are
+// left out. An empty map means nothing is scheduled.
+func (u UpgradesResponse) Scheduled() map[string]string {
+	out := map[string]string{}
+	for k, v := range u {
+		v = bytes.TrimSpace(v)
+		var probe struct {
+			Nullopt *bool `json:"nullopt"`
+		}
+		if len(v) > 0 && v[0] == '{' && json.Unmarshal(v, &probe) == nil && probe.Nullopt != nil && *probe.Nullopt {
+			continue
+		}
+		if k == "upgradeversion" || (k == "time" && string(v) == "0") || string(v) == "null" {
+			continue
+		}
+		var buf bytes.Buffer
+		if json.Compact(&buf, v) == nil {
+			out[k] = buf.String()
+		} else {
+			out[k] = string(v)
+		}
+	}
+	return out
+}
 
 // Armed returns the "Armed with network upgrades: …" status line, if any
 // (SPEC.md: that is how info reports an armed node).

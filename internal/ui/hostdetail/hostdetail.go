@@ -182,6 +182,9 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 			m.tab = (m.tab + numTabs - 1) % numTabs
 			return m, m.fetchFor(m.tab, false)
 		case "r":
+			if m.tab == TabQuorum {
+				delete(m.data, ui.ViewQuorumTransitive)
+			}
 			return m, tea.Batch(ui.Emit(ui.RefreshHostMsg{Alias: m.alias}), m.fetchFor(m.tab, true))
 		case "t":
 			if m.tab == TabQuorum {
@@ -383,6 +386,9 @@ func (m *Model) quorumTab(t theme.Theme, ctx ui.Context) []string {
 		return out
 	}
 	q := m.data[v].msg.Quorum
+	if q != nil && q.QSet == nil && q.Transitive != nil {
+		return m.transitiveView(t, q)
+	}
 	if q == nil || q.QSet == nil {
 		return []string{t.Muted.Render("The node returned no quorum information yet.")}
 	}
@@ -425,6 +431,28 @@ func (m *Model) quorumTab(t theme.Theme, ctx ui.Context) []string {
 		out = append(out, m.qsetLines(qs.Value, "  ")...)
 	}
 	return out
+}
+
+// transitiveView shows the result of quorum?transitive=true: the
+// intersection summary and every node in the transitive quorum.
+func (m *Model) transitiveView(t theme.Theme, q *corehttp.QuorumResponse) []string {
+	out := []string{t.Header.Render("Transitive quorum (network-wide check)")}
+	out = append(out, m.transitiveLines(t, q.Transitive)...)
+	if len(q.Nodes) > 0 {
+		out = append(out, "", t.Header.Render(components.Fit("NODE", 28)+components.Fit("DIST", 6)+components.Fit("STATUS", 12)+"HEARD"))
+		nodes := append([]corehttp.TransitiveNode(nil), q.Nodes...)
+		sort.SliceStable(nodes, func(i, j int) bool { return nodes[i].Distance < nodes[j].Distance })
+		for _, n := range nodes {
+			status := n.Status
+			if status != "tracking" {
+				status = t.Warn.Render(components.Fit(status, 12))
+			} else {
+				status = components.Fit(status, 12)
+			}
+			out = append(out, components.Fit(m.nodeLabel(n.Node), 28)+components.Fit(fmt.Sprint(n.Distance), 6)+status+fmt.Sprint(n.Heard))
+		}
+	}
+	return append(out, "", t.Muted.Render("Press r to go back to this node's own quorum set."))
 }
 
 func (m *Model) transitiveLines(t theme.Theme, tr *corehttp.Transitive) []string {
@@ -534,16 +562,17 @@ func (m *Model) upgradesTab(t theme.Theme, ctx ui.Context) []string {
 		}
 	}
 	out = append(out, t.Header.Render("upgrades?mode=get"))
-	if len(f.Upgrades) == 0 {
+	set := f.Upgrades.Scheduled()
+	if len(set) == 0 {
 		return append(out, t.Muted.Render("Nothing scheduled."))
 	}
-	keys := make([]string, 0, len(f.Upgrades))
-	for k := range f.Upgrades {
+	keys := make([]string, 0, len(set))
+	for k := range set {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		out = append(out, t.Muted.Render(components.Fit(k, 26))+strings.TrimSpace(string(f.Upgrades[k])))
+		out = append(out, t.Muted.Render(components.Fit(k, 26))+set[k])
 	}
 	return out
 }

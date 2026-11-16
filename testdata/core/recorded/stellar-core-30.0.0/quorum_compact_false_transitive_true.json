@@ -1,0 +1,45 @@
+{
+   "critical" : null,
+   "intersection" : true,
+   "last_check_ledger" : 2,
+   "maybe_dead_nodes" : [],
+   "node_count" : 3,
+   "nodes" : [
+      {
+         "distance" : 0,
+         "heard" : 20,
+         "node" : "itest-a",
+         "qset" : {
+            "t" : 2,
+            "v" : [ "itest-b", "itest-a", "itest-c" ]
+         },
+         "status" : "tracking",
+         "value" : "[ SIGNED@itest-b txH: db2c4a, ct: 1794826769.000, upgrades: [ ] ]",
+         "value_id" : 1
+      },
+      {
+         "distance" : 1,
+         "heard" : 20,
+         "node" : "itest-b",
+         "qset" : {
+            "t" : 2,
+            "v" : [ "itest-b", "itest-a", "itest-c" ]
+         },
+         "status" : "tracking",
+         "value" : "[ SIGNED@itest-b txH: db2c4a, ct: 1794826769.000, upgrades: [ ] ]",
+         "value_id" : 1
+      },
+      {
+         "distance" : 1,
+         "heard" : 20,
+         "node" : "itest-c",
+         "qset" : {
+            "t" : 2,
+            "v" : [ "itest-b", "itest-a", "itest-c" ]
+         },
+         "status" : "tracking",
+         "value" : "[ SIGNED@itest-b txH: db2c4a, ct: 1794826769.000, upgrades: [ ] ]",
+         "value_id" : 1
+      }
+   ]
+}
