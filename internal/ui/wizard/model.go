@@ -139,13 +139,32 @@ func (m *Model) Keys() []key.Binding {
 }
 
 // prefill starts a new draft from what the hosts already run: home
-// domain, network and node type of the first adopted host.
+// domain, network and node type of the first adopted host, and each
+// host's own archive.
 func (m *Model) prefill() {
-	for _, f := range m.facts() {
-		c := f.Existing
+	first := true
+	facts := m.facts()
+	for _, h := range m.draft.Hosts {
+		c := facts[h].Existing
 		if c == nil {
 			continue
 		}
+		var own *stellarcfg.HistoryArchive
+		for i, a := range c.History {
+			if a.Put != "" && own == nil {
+				own = &c.History[i]
+			}
+		}
+		if own != nil {
+			if m.draft.Archives == nil {
+				m.draft.Archives = map[string]stellarcfg.ArchiveSpec{}
+			}
+			m.draft.Archives[h] = stellarcfg.ArchiveFromHistory(*own)
+		}
+		if !first {
+			continue
+		}
+		first = false
 		if m.draft.HomeDomain == "" {
 			m.draft.HomeDomain = c.NodeHomeDomain
 		}
@@ -154,21 +173,16 @@ func (m *Model) prefill() {
 				m.draft.Network = net
 			}
 		}
-		publishes := false
-		for _, h := range c.History {
-			publishes = publishes || h.Put != ""
-		}
 		switch validator := c.NodeIsValidator != nil && *c.NodeIsValidator; {
-		case validator && publishes:
+		case validator && own != nil:
 			m.draft.NodeType = TypeFull
 		case validator:
 			m.draft.NodeType = TypeBasic
-		case publishes:
+		case own != nil:
 			m.draft.NodeType = TypeArchiver
 		default:
 			m.draft.NodeType = TypeWatcher
 		}
-		return
 	}
 }
 
@@ -301,8 +315,8 @@ func (m *Model) stepDone() tea.Cmd {
 		// on; results for unchanged specs are reused.
 		for _, h := range m.draft.Hosts {
 			a, ok := m.draft.Archives[h]
-			if !ok || a.Validate() != nil {
-				continue
+			if !ok || a.Validate() != nil || a.URL == "" {
+				continue // nothing to check against (a custom archive without a URL)
 			}
 			if c, done := m.archives[h]; done && c.spec == a {
 				continue

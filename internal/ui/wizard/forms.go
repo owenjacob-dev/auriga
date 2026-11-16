@@ -254,10 +254,11 @@ func (m *Model) buildForm() *huh.Form {
 					huh.NewInput().Title("Directory nginx serves").Description("Absolute path on the host, e.g. /var/www/history.").Value(&af.dir),
 				).Title(h+": local directory").WithHideFunc(is(stellarcfg.BackendNginx)),
 				huh.NewGroup(
+					huh.NewInput().Title("Public URL (optional)").Description("Used to check whether the archive exists.").Value(&af.url),
 					huh.NewInput().Title("get").Description("Must contain {0} and {1}.").Value(&af.get),
 					huh.NewInput().Title("put").Value(&af.put),
 					huh.NewInput().Title("mkdir").Value(&af.mkdir),
-				).Title(h+": custom").WithHideFunc(is(stellarcfg.BackendCustom)),
+				).Title(h+": custom commands").WithHideFunc(is(stellarcfg.BackendCustom)),
 			)
 		}
 

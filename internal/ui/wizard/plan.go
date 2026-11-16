@@ -239,10 +239,15 @@ func BuildPlan(in Input) *Plan {
 				add(StepHistory, h, "archive", quorum.Block, "%v", err)
 				continue
 			}
-			if other, dup := targets[a.PutTarget()]; dup {
+			if a.Backend == stellarcfg.BackendCustom && !strings.Contains(a.Get, "://") && len(d.Hosts) > 1 {
+				add(StepHistory, h, "archive-local-get", quorum.Warn,
+					"get command reads a local path; siblings list it as given and would read their own disk instead")
+			}
+			t := a.PutTarget()
+			if other, dup := targets[t]; dup && t != "" {
 				add(StepHistory, h, "shared-archive", quorum.Block, "publishes to the same place as %s; every node needs its own archive", other)
 			}
-			targets[a.PutTarget()] = h
+			targets[t] = h
 		}
 	}
 
@@ -462,7 +467,13 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 			c.History = slices.DeleteFunc(append([]stellarcfg.HistoryArchive(nil), c.History...),
 				func(x stellarcfg.HistoryArchive) bool { return x.Name == hist.Name })
 			c.History = append(c.History, hist)
-			if f.ArchiveExists != "yes" {
+			already := false
+			if f.Existing != nil {
+				for _, x := range f.Existing.History {
+					already = already || a.Same(x)
+				}
+			}
+			if f.ArchiveExists != "yes" && !already {
 				hp.Actions = append(hp.Actions, Action{Kind: "new-hist", Archive: a.Name,
 					Reason: "initialises the archive; running it on an existing archive erases it"})
 			}

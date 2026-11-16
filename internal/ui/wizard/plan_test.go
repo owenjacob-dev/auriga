@@ -468,3 +468,64 @@ func TestNoArchivesNeedsConsent(t *testing.T) {
 		}
 	}
 }
+
+// An archive the node already publishes is kept as it is and never
+// initialised again (new-hist would erase it).
+func TestAdoptedArchiveIsNotReinitialised(t *testing.T) {
+	d, f := pubnetFull()
+	existing := stellarcfg.HistoryArchive{Name: "local", Get: "cp /var/lib/stellar/history/{0} {1}",
+		Put: "cp {0} /var/lib/stellar/history/{1}", Mkdir: "mkdir -p /var/lib/stellar/history/{0}"}
+	h := d.Hosts[0]
+	fa := f[h]
+	fa.Existing = &stellarcfg.Config{NetworkPassphrase: Passphrases["pubnet"], NodeHomeDomain: d.HomeDomain, History: []stellarcfg.HistoryArchive{existing}}
+	fa.ArchiveExists = "unknown" // a custom archive without a URL cannot be checked
+	f[h] = fa
+	d.Archives[h] = stellarcfg.ArchiveFromHistory(existing)
+	p := BuildPlan(Input{Draft: d, Facts: f, Preset: preset(t, presets.Pubnet), Render: renderOpt})
+	for _, i := range p.IssuesFor(StepHistory) {
+		if i.Host == h && i.Severity == quorum.Block {
+			t.Errorf("blocking history issue for the adopted archive: %v", i)
+		}
+	}
+	for _, a := range p.Hosts[0].Actions {
+		if a.Kind == "new-hist" {
+			t.Errorf("new-hist planned for the archive %s already publishes", h)
+		}
+	}
+	if !slices.Contains(p.Hosts[0].Config.History, existing) {
+		t.Errorf("history %+v", p.Hosts[0].Config.History)
+	}
+	// Moving it elsewhere is a new archive.
+	moved := d.Archives[h]
+	moved.Put = "cp {0} /srv/history/{1}"
+	d.Archives[h] = moved
+	p = BuildPlan(Input{Draft: d, Facts: f, Preset: preset(t, presets.Pubnet), Render: renderOpt})
+	if !slices.ContainsFunc(p.Hosts[0].Actions, func(a Action) bool { return a.Kind == "new-hist" }) {
+		t.Error("no new-hist for a moved archive")
+	}
+}
+
+// The same custom commands on several hosts are each host's own archive
+// (cp to a local directory); with the same public URL they are not.
+func TestCustomArchivesOnSeveralHosts(t *testing.T) {
+	d, f := pubnetFull()
+	local := stellarcfg.ArchiveSpec{Backend: stellarcfg.BackendCustom, Get: "cp /var/lib/stellar/history/{0} {1}",
+		Put: "cp {0} /var/lib/stellar/history/{1}", Mkdir: "mkdir -p /var/lib/stellar/history/{0}"}
+	for _, h := range d.Hosts {
+		a := local
+		a.Name = h
+		d.Archives[h] = a
+	}
+	in := Input{Draft: d, Facts: f, Preset: preset(t, presets.Pubnet), Render: renderOpt}
+	if p := BuildPlan(in); hasRule(p, "shared-archive", quorum.Block) || !hasRule(p, "archive-local-get", quorum.Warn) {
+		t.Errorf("local custom archives: %v", p.IssuesFor(StepHistory))
+	}
+	for _, h := range d.Hosts {
+		a := d.Archives[h]
+		a.URL = "https://history.acme.example"
+		d.Archives[h] = a
+	}
+	if !hasRule(BuildPlan(in), "shared-archive", quorum.Block) {
+		t.Error("custom archives with one URL not reported as shared")
+	}
+}

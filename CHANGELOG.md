@@ -22,6 +22,8 @@ All notable changes to this project are documented here. The format follows
 - The quorum checks now also follow stellar-core's rule that validators with
   an archive must be in every quorum, with the same consent for
   `UNSAFE_QUORUM`.
+- The wizard's history step starts from the archive an adopted node already
+  publishes to, and never initialises that archive again.
 - Setup wizard (`s`): eight steps (scope, network, node type, keys, quorum,
   history archive, advanced, review) that configure an org's hosts at once.
   New drafts start from what adopted hosts already run, and every step saves
