@@ -49,6 +49,22 @@ Helpers so far: `probe.sh` (host facts as `key=value` lines) and
 `read-config.sh` (the config with `NODE_SEED` replaced on the host by
 `<redacted:G…>`).
 
+## Admin endpoint (`internal/corehttp`)
+
+`corehttp.Client` can build only the six read-only commands. A `Transport`
+carries each request: the SSH tunnel (a direct-tcpip channel to
+`127.0.0.1:HTTP_PORT`, one pool slot per request) or, once sshd refuses
+forwarding, the `admin-get.sh` helper on the host. `corehttp.Adaptive`
+switches between them. Response types are lenient across core builds;
+`testdata/core/recorded/` pins field names to real responses.
+
+## Polling and health
+
+The root model polls each connected host's `info` on its own `tea.Tick`
+timer, with a generation number per connection so stale timers are dropped.
+`internal/health` turns the samples into dashboard cells and plain-language
+problems; it is pure and table-tested.
+
 ## Root model and fleet
 
 The root model owns the inventory and a `ui.Fleet` (one `HostView` per host).

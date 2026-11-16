@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Live dashboard: polls each host's `info` every 5 s (configurable 2–60 s in
+  `settings.toml`, `p` to pause) and shows state, ledger, age, peers, quorum,
+  intersection, protocol and armed upgrades, coloured by SDF's monitoring
+  thresholds. Stale values grey out; a lost quorum intersection raises a red
+  banner. Every problem is also written out in the status line.
+- Host detail tabs: Info, Quorum (with an on-demand transitive check), Peers,
+  Upgrades, Config (redacted) and Probe. `c` copies a tab's JSON.
+- The admin endpoint is reached through the SSH connection. When sshd refuses
+  port forwarding, Auriga runs `curl` (or `stellar-core http-command`) on the
+  host instead and says which it uses.
 - Host picker (`a`): choose aliases from `~/.ssh/config` (following
   `Include`), with filter and multi-select. Aliases resolve with `ssh -G`, or
   with a built-in parser and a warning when OpenSSH is missing.
