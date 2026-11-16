@@ -1,0 +1,44 @@
+{
+  "info": {
+    "build": "stellar-core 30.0.0 (synthetic)",
+    "history_failure_rate": "0",
+    "ledger": {
+      "age": 3,
+      "baseFee": 100,
+      "baseReserve": 5000000,
+      "closeTime": 1794830400,
+      "hash": "1f9a0c7d8e6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a190807f6e",
+      "maxTxSetSize": 1000,
+      "maxSorobanTxSetSize": 100,
+      "num": 61234567,
+      "version": 29
+    },
+    "network": "Public Global Stellar Network ; September 2015",
+    "peers": { "authenticated_count": 12, "pending_count": 2 },
+    "protocol_version": 30,
+    "quorum": {
+      "node": "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H",
+      "qset": {
+        "agree": 18,
+        "delayed": 0,
+        "disagree": 0,
+        "fail_at": 3,
+        "hash": "a4b1c2",
+        "lag_ms": 120,
+        "ledger": 61234567,
+        "missing": 0,
+        "phase": "EXTERNALIZE",
+        "validated": true
+      },
+      "transitive": {
+        "critical": null,
+        "intersection": true,
+        "last_check_ledger": 61234000,
+        "node_count": 24
+      }
+    },
+    "startedOn": "2026-11-15T08:00:00Z",
+    "state": "Synced!",
+    "status": ["Armed with network upgrades: upgradetime=2026-11-23T17:00:00Z, protocolversion=30"]
+  }
+}

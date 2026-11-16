@@ -1,0 +1,50 @@
+Content-Length: 1273
+Content-Type: application/json
+
+{
+   "info" : {
+      "build" : "stellar-core 30.0.0 (0e49751aa9ddf892302cca02cea7f3f5d97df9f1)",
+      "ledger" : {
+         "age" : 5,
+         "baseFee" : 100,
+         "baseReserve" : 100000000,
+         "closeTime" : 1794826800,
+         "hash" : "45971e4a6e4a7e7ba13e5d6e1d105b6d0f7c1f1230db1306a78ad47d9d118346",
+         "maxTxSetSize" : 100,
+         "num" : 26,
+         "version" : 0
+      },
+      "network" : "Auriga Integration Network ; November 2026",
+      "peers" : {
+         "authenticated_count" : 2,
+         "pending_count" : 0
+      },
+      "protocol_version" : 30,
+      "quorum" : {
+         "maybe_dead_nodes" : [],
+         "node" : "itest-b",
+         "qset" : {
+            "agree" : 3,
+            "cost" : 6656,
+            "delayed" : 0,
+            "disagree" : 0,
+            "fail_at" : 2,
+            "hash" : "c8d2d5",
+            "lag_ms" : 8,
+            "ledger" : 25,
+            "missing" : 0,
+            "phase" : "EXTERNALIZE",
+            "validated" : true
+         },
+         "transitive" : {
+            "critical" : null,
+            "intersection" : true,
+            "last_check_ledger" : 2,
+            "node_count" : 3
+         }
+      },
+      "startedOn" : "2026-11-16T10:57:56Z",
+      "state" : "Synced!"
+   }
+}
+

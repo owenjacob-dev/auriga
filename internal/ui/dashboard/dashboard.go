@@ -1,19 +1,19 @@
-// Package dashboard is the home screen: one row per host.
-//
-// In M1 a row shows the SSH connection and the probe summary. M2 replaces
-// the probe columns with the live `info` columns from SPEC.md "Dashboard"
-// and moves the probe summary to the host detail view.
+// Package dashboard is the home screen: one row per host with live `info`
+// from the admin endpoint, coloured by the rules in internal/health (SPEC.md
+// "Dashboard").
 package dashboard
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
+	"github.com/owenjacob-dev/auriga/internal/health"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
-	"github.com/owenjacob-dev/auriga/internal/strkey"
 	"github.com/owenjacob-dev/auriga/internal/ui"
 	"github.com/owenjacob-dev/auriga/internal/ui/components"
 	"github.com/owenjacob-dev/auriga/internal/ui/theme"
@@ -25,15 +25,37 @@ const LowDiskKB = 20 * 1024 * 1024
 type column struct {
 	title string
 	width int
+	wide  bool // shown only when the terminal is wide enough
 }
 
+// columns follow SPEC.md's sketch; BUILD and UP SINCE appear on wide
+// terminals (the Info tab always shows them).
 var columns = []column{
-	{"", 2}, {"HOST", 12}, {"SSH", 14}, {"CORE", 9}, {"SERVICE", 10},
-	{"NODE KEY", 11}, {"FREE", 7}, {"NTP", 4},
+	{"", 2, false}, {"HOST", 12, false}, {"STATE", 14, false}, {"LEDGER", 10, false},
+	{"AGE", 5, false}, {"PEERS", 6, false}, {"QUORUM", 9, false}, {"INT", 4, false},
+	{"PROTO", 6, false}, {"UPGRADE", 8, false}, {"BUILD", 10, true}, {"UP SINCE", 13, true},
+}
+
+func visibleColumns(width int) []int {
+	total := 0
+	var idx []int
+	for i, c := range columns {
+		if !c.wide {
+			total += c.width
+			idx = append(idx, i)
+		}
+	}
+	for i, c := range columns {
+		if c.wide && total+c.width <= width {
+			total += c.width
+			idx = append(idx, i)
+		}
+	}
+	return idx
 }
 
 type keys struct {
-	Up, Down, Open, Add, Refresh, Remove key.Binding
+	Up, Down, Open, Add, Refresh, Remove, Pause key.Binding
 }
 
 func newKeys() keys {
@@ -44,6 +66,7 @@ func newKeys() keys {
 		Add:     key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
 		Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 		Remove:  key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "remove")),
+		Pause:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
 	}
 }
 
@@ -74,7 +97,7 @@ func (m *Model) Keys() []key.Binding {
 		}
 	}
 	k := m.keys
-	return []key.Binding{k.Add, k.Open, k.Refresh, k.Remove}
+	return []key.Binding{k.Add, k.Open, k.Refresh, k.Pause}
 }
 
 // SetFleet implements ui.FleetAware.
@@ -91,7 +114,8 @@ func (m *Model) FullHelp() []key.Binding {
 		long(k.Down, "↓ j", "Move down"),
 		long(k.Open, "enter", "Open the selected host"),
 		long(k.Add, "a", "Add hosts from ~/.ssh/config"),
-		long(k.Refresh, "r", "Probe again, or reconnect a disconnected host"),
+		long(k.Refresh, "r", "Poll and probe now, or reconnect a disconnected host"),
+		long(k.Pause, "p", "Pause or resume polling"),
 		long(k.Remove, "x", "Remove the host from the inventory (local only)"),
 	}
 }
@@ -133,6 +157,8 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	switch {
 	case key.Matches(km, m.keys.Add):
 		return m, ui.Emit(ui.OpenHostPickerMsg{})
+	case key.Matches(km, m.keys.Pause):
+		return m, ui.Emit(ui.TogglePauseMsg{})
 	case i < 0:
 		return m, nil
 	case key.Matches(km, m.keys.Up):
@@ -159,27 +185,51 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 		m.fleet = ctx.Fleet
 	}
 	t := ctx.Theme
+	cols := visibleColumns(ctx.Cols)
 	var header string
-	for _, c := range columns {
-		header += components.Fit(c.title, c.width)
+	for _, i := range cols {
+		header += components.Fit(columns[i].title, columns[i].width)
 	}
-	body := []string{t.Header.Render(header)}
 	if ctx.Fleet == nil || len(ctx.Fleet.Hosts) == 0 {
-		body = append(body, "", t.Muted.Render("No hosts yet. Press a to add hosts from ~/.ssh/config."))
+		body := []string{t.Header.Render(header), "", t.Muted.Render("No hosts yet. Press a to add hosts from ~/.ssh/config.")}
 		return ui.Layout{Body: body, Status: m.flash(ctx, t.Muted.Render("No hosts in the inventory"))}
 	}
+	rows := Rows(ctx.Fleet, ctx.Now)
+
+	var body []string
+	for _, h := range ctx.Fleet.Hosts {
+		if rows[h.Alias].IntersectionLost {
+			body = append(body, t.Banner.Render(components.Fit(
+				"○ NO QUORUM INTERSECTION ("+h.Alias+"): network can split. Check quorum sets.", ctx.Cols)))
+			break
+		}
+	}
+	body = append(body, t.Header.Render(header))
 	sel := m.index()
 	for i, h := range ctx.Fleet.Hosts {
-		body = append(body, row(t, h, i == sel))
+		body = append(body, m.row(t, h, rows[h.Alias], cols, i == sel))
 	}
 	if m.confirmRemove != "" {
 		body = append(body, "", t.Warn.Render(fmt.Sprintf("Remove %s from the inventory? Nothing on the host changes.", m.confirmRemove)))
 	}
 	status := ""
 	if sel >= 0 {
-		status = statusLine(t, ctx.Fleet.Hosts[sel], ctx.Now)
+		h := ctx.Fleet.Hosts[sel]
+		status = statusLine(t, h, rows[h.Alias], ctx.Now)
 	}
 	return ui.Layout{Subtitle: subtitle(ctx.Fleet), Body: body, Status: m.flash(ctx, status)}
+}
+
+// Rows evaluates the health of every host in the fleet.
+func Rows(f *ui.Fleet, now time.Time) map[string]health.Row {
+	samples := make([]health.Sample, 0, len(f.Hosts))
+	for _, h := range f.Hosts {
+		samples = append(samples, health.Sample{
+			Alias: h.Alias, Org: h.Org, Network: h.Network,
+			Info: h.Info, At: h.InfoAt, NotSyncedSince: h.NotSyncedSince,
+		})
+	}
+	return health.Evaluate(samples, now, f.PollInterval)
 }
 
 func (m *Model) flash(ctx ui.Context, status string) string {
@@ -213,11 +263,15 @@ func subtitle(f *ui.Fleet) string {
 			s += " · " + n
 		}
 	}
+	if f.Paused {
+		s += " · polling paused"
+	}
 	return s
 }
 
-// Health returns the row status for a host.
-func Health(h *ui.HostView) theme.Status {
+// Health returns a host's overall status: its connection, its polled
+// health and its probe findings.
+func Health(h *ui.HostView, r health.Row) theme.Status {
 	switch h.Conn.State {
 	case sshx.StateConnected:
 	case sshx.StateConnecting, sshx.StateReconnecting:
@@ -225,10 +279,10 @@ func Health(h *ui.HostView) theme.Status {
 	default:
 		return theme.StatusDown
 	}
-	if h.Probing || h.Probe == nil {
-		return theme.StatusDegraded
-	}
-	if h.ProbeErr != "" || len(Warnings(h)) > 0 {
+	switch {
+	case r.Overall == health.Bad, h.PollFailures >= health.FailuresBeforeSlow:
+		return theme.StatusDown
+	case h.Info == nil, h.Probing, h.ProbeErr != "", h.InfoErr != "", r.Overall == health.Warn, len(Warnings(h)) > 0:
 		return theme.StatusDegraded
 	}
 	return theme.StatusOK
@@ -260,73 +314,98 @@ func Warnings(h *ui.HostView) []string {
 	return w
 }
 
-func row(t theme.Theme, h *ui.HostView, selected bool) string {
-	st := Health(h)
-	core, svc, key, free, ntp := "—", "—", "—", "—", "—"
-	if p := h.Probe; p != nil {
-		if p.CoreInstalled {
-			core = ui.CoreVersion(p.CoreVersion)
-		} else {
-			core = "missing"
+func (m *Model) row(t theme.Theme, h *ui.HostView, r health.Row, cols []int, selected bool) string {
+	st := Health(h, r)
+	state := r.State
+	if h.Conn.State != sshx.StateConnected {
+		state = health.Cell{Text: h.Conn.State.String(), Level: health.Bad}
+		if h.Conn.State == sshx.StateConnecting || h.Conn.State == sshx.StateReconnecting {
+			state.Level = health.Warn
 		}
-		svc = p.ServiceActive
-		if p.ServiceLoad == "not-found" {
-			svc = "no unit"
-		}
-		if p.DiskAvailKB > 0 {
-			free = humanKB(p.DiskAvailKB)
-		}
-		ntp = p.NTPSync
-		if ntp != "yes" && ntp != "no" {
-			ntp = "?"
+	} else if h.Info == nil {
+		state = health.Cell{Text: "polling…", Level: health.Unknown}
+		if h.InfoErr != "" {
+			state = health.Cell{Text: "no info", Level: health.Bad}
 		}
 	}
-	if h.Config != nil && h.Config.PublicKey != "" {
-		key = strkey.Abbrev(h.Config.PublicKey)
-	} else if h.Config != nil && h.Config.Seed == "absent" {
-		key = "no seed"
-	}
-	conn := h.Conn.State.String()
-	if h.Probing && h.Conn.State == sshx.StateConnected {
-		conn = "probing"
-	}
-	cells := []string{
-		st.Symbol(), h.Alias, conn, core, svc, key, free, ntp,
+	cells := []health.Cell{
+		{Text: st.Symbol()}, {Text: h.Alias}, state, r.Ledger, r.Age, r.Peers, r.Quorum,
+		r.Intersection, r.Protocol, r.Upgrade, r.Build, r.UpSince,
 	}
 	var out string
-	for i, c := range cells {
-		out += components.Fit(c, columns[i].width)
+	for _, i := range cols {
+		c := cells[i]
+		text := components.Fit(c.Text, columns[i].width)
+		if selected {
+			out += text
+			continue
+		}
+		switch i {
+		case 0:
+			out += t.Style(st).Render(text)
+		case 1:
+			out += text
+		default:
+			out += cellStyle(t, c).Render(text)
+		}
 	}
-	style := t.Style(st)
 	if selected {
-		return style.Reverse(true).Render(out)
+		return t.Style(st).Reverse(true).Render(out)
 	}
-	return style.Render(out[:len(st.Symbol())]) + out[len(st.Symbol()):]
+	return out
 }
 
-func statusLine(t theme.Theme, h *ui.HostView, now time.Time) string {
-	// The action the operator can take comes before long error text, which
-	// may be cut off at the frame edge.
+func cellStyle(t theme.Theme, c health.Cell) lipgloss.Style {
+	if c.Stale {
+		return t.Stale
+	}
+	switch c.Level {
+	case health.OK:
+		return t.OK
+	case health.Warn:
+		return t.Warn
+	case health.Bad:
+		return t.Bad
+	}
+	return t.Muted
+}
+
+func statusLine(t theme.Theme, h *ui.HostView, r health.Row, now time.Time) string {
+	// What needs attention comes before long error text, which may be cut
+	// off at the frame edge.
 	s := h.Alias + " · ssh " + h.Conn.State.String()
 	if h.Conn.Waiting {
 		s += " · press r to retry"
 	}
-	if h.Conn.State != sshx.StateConnected && !h.Conn.NextRetry.IsZero() && h.Conn.NextRetry.After(now) {
-		s += fmt.Sprintf(" · retry in %ds", int(h.Conn.NextRetry.Sub(now).Seconds()+0.5))
+	if h.Conn.State != sshx.StateConnected {
+		if !h.Conn.NextRetry.IsZero() && h.Conn.NextRetry.After(now) {
+			s += fmt.Sprintf(" · retry in %ds", int(h.Conn.NextRetry.Sub(now).Seconds()+0.5))
+		}
+		if h.Conn.Err != "" {
+			s += " · " + h.Conn.Err
+		}
+		return t.Bad.Render(s)
 	}
-	switch {
-	case h.Conn.Err != "" && h.Conn.State != sshx.StateConnected:
-		s += " · " + h.Conn.Err
-	case h.ProbeErr != "":
-		s += " · probe failed: " + h.ProbeErr
-	case len(h.Conn.Route) > 1:
-		s += " · via " + h.Conn.Route[len(h.Conn.Route)-2]
+	if h.Transport != "" {
+		s += " · " + h.Transport
 	}
-	if !h.ProbedAt.IsZero() && h.ProbeErr == "" {
-		s += " · probed " + ago(now.Sub(h.ProbedAt))
+	problems := append([]string(nil), r.Problems...)
+	if h.InfoErr != "" {
+		problems = append([]string{"poll failed: " + h.InfoErr}, problems...)
 	}
-	if w := Warnings(h); len(w) > 0 {
-		return t.Warn.Render(s + " · " + w[0])
+	if h.ProbeErr != "" {
+		problems = append(problems, "probe failed: "+h.ProbeErr)
+	}
+	problems = append(problems, Warnings(h)...)
+	if !h.InfoAt.IsZero() {
+		s += " · last info " + ago(now.Sub(h.InfoAt))
+	}
+	if len(problems) > 0 {
+		style := t.Warn
+		if r.Overall == health.Bad || h.InfoErr != "" {
+			style = t.Bad
+		}
+		return style.Render(h.Alias + " · " + strings.Join(problems, " · ") + " · " + strings.TrimPrefix(s, h.Alias+" · "))
 	}
 	return t.Muted.Render(s)
 }

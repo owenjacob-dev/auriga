@@ -1,0 +1,24 @@
+┌ auriga · 2 hosts ────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ○ NO QUORUM INTERSECTION (acme-b): network can split. Check quorum sets.     │
+│   HOST        STATE         LEDGER    AGE  PEERS QUORUM   INT PROTO UPGRADE  │
+│ ● acme-a      Synced!       61234567  3s   12/2  18 f≥3   yes 30/29 P30 ▲    │
+│ ○ acme-b      Synced!       61234567  4s   11/0  18 f≥3   NO  30/29 —        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel · last info 0s ago                       │
+└ a add  ⏎ detail  r refresh  p pause  ? help  q quit ─────────────────────────┘

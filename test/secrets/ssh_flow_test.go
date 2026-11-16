@@ -151,7 +151,19 @@ func TestSSHFlowDoesNotLeak(t *testing.T) {
 	typeSecret(passphraseCanary)
 	waitFor("sudo password for canary-a")
 	typeSecret(sudoCanary)
-	waitFor("GBRP…OX2H") // probe finished: key derived on the host
+	// The probe is done once the key derived on the host is in the inventory.
+	// (Waiting on screen text is fragile: the renderer sends only changed
+	// cells, so a string can arrive split.)
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		if inv, err := inventory.Load(dirs.Config); err == nil && inv.Host("canary-a").PublicKey != "" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("probe never saved the public key")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(10*time.Second))
 	out, _ := io.ReadAll(tm.FinalOutput(t))

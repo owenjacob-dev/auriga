@@ -2,6 +2,8 @@ module github.com/owenjacob-dev/auriga
 
 go 1.26.7
 
+toolchain go1.26.11
+
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1

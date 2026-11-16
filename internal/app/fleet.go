@@ -149,6 +149,7 @@ func (m Model) handleFleet(msg tea.Msg) (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		m.inv.RemoveHost(msg.Alias)
+		delete(m.pollGen, msg.Alias)
 		m.syncFleet()
 		m.dropPrompts(msg.Alias)
 		alias := msg.Alias
@@ -160,7 +161,10 @@ func (m Model) handleFleet(msg tea.Msg) (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		if hv.Conn.State == sshx.StateConnected {
-			return m, m.startProbe(hv), true
+			alias := msg.Alias
+			return m, tea.Batch(
+				m.backendCall(func(b Backend) { b.ResetAdmin(alias) }),
+				m.startProbe(hv), m.startPolling(alias)), true
 		}
 		alias := msg.Alias
 		return m, m.backendCall(func(b Backend) { b.Reconnect(alias) }), true
@@ -188,7 +192,7 @@ func (m *Model) handlePoolEvent(e sshx.Event) tea.Cmd {
 		prev := hv.Conn.State
 		hv.Conn = e.HostState
 		if e.State == sshx.StateConnected && prev != sshx.StateConnected {
-			return m.startProbe(hv)
+			return tea.Batch(m.startProbe(hv), m.startPolling(hv.Alias))
 		}
 	case sshx.PromptEvent:
 		if m.fleet.Host(e.Alias) == nil {

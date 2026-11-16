@@ -27,6 +27,7 @@ type Helper string
 const (
 	HelperProbe      Helper = "probe"
 	HelperReadConfig Helper = "read-config"
+	HelperAdminGet   Helper = "admin-get"
 )
 
 func script(h Helper) ([]byte, error) {
@@ -98,6 +99,9 @@ const (
 )
 
 type sudoState struct {
+	// mu serialises discovery, so helpers that start together on a host ask
+	// for its sudo password once, not once each.
+	mu       sync.Mutex
 	mode     sudoMode
 	password *secret.Buffer
 }
@@ -173,6 +177,8 @@ func (r *Runner) ensureSudo(ctx context.Context, alias string) (*sudoState, erro
 		r.sudo[alias] = st
 	}
 	r.mu.Unlock()
+	st.mu.Lock()
+	defer st.mu.Unlock()
 	if st.mode != sudoUnknown {
 		return st, nil
 	}
@@ -239,6 +245,27 @@ func passwordThen(pw *secret.Buffer, rest []byte) []byte {
 	return append(out, rest...)
 }
 
+// coreFuncs is shell shared by every helper. auriga_core runs stellar-core
+// as the stellar user from the service's working directory, so relative
+// DATABASE and BUCKET_DIR_PATH values resolve exactly as they do for the
+// running node. The packaged unit sets no WorkingDirectory, which systemd
+// runs from "/". Commands that read no config (gen-seed, sec-to-pub) do not
+// need it.
+const coreFuncs = `auriga_workdir() {
+	_wd=$(systemctl show -p WorkingDirectory --value "$1" 2>/dev/null)
+	_wd=${_wd#-}
+	case "$_wd" in
+	"" ) _wd=/ ;;
+	"~") _wd=$(getent passwd stellar | cut -d: -f6); [ -n "$_wd" ] || _wd=/ ;;
+	esac
+	printf '%s' "$_wd"
+}
+auriga_core() {
+	_svc=$1; shift
+	( cd "$(auriga_workdir "$_svc")" && sudo -n -u stellar -- stellar-core "$@" )
+}
+`
+
 // secretRequest is the line a helper prints (via auriga_read_secret) when it
 // is ready to read the secret from stdin.
 const secretRequest = "@@ready-secret"
@@ -255,6 +282,7 @@ func wrap(body []byte) []byte {
 	var b bytes.Buffer
 	b.WriteString("LC_ALL=C; export LC_ALL\n")
 	b.WriteString("auriga_read_secret() { printf '%s\\n' '" + secretRequest + "'; IFS= read -r \"$1\"; }\n")
+	b.WriteString(coreFuncs)
 	b.WriteString("auriga_main() {\n")
 	b.Write(body)
 	if len(body) > 0 && body[len(body)-1] != '\n' {

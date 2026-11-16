@@ -1,0 +1,80 @@
+{
+   "maybe_dead_nodes" : [],
+   "node" : "itest-a",
+   "qset" : {
+      "agree" : [ "itest-b", "itest-a", "itest-c" ],
+      "cost" : {
+         "10" : {
+            "itest-b" : 3796,
+            "itest-c" : 3328
+         },
+         "11" : {
+            "itest-b" : 3328,
+            "itest-c" : 3796
+         },
+         "12" : {
+            "itest-b" : 3796,
+            "itest-c" : 3988
+         },
+         "13" : {
+            "itest-b" : 3328,
+            "itest-c" : 3796
+         },
+         "14" : {
+            "itest-b" : 3796,
+            "itest-c" : 2848
+         },
+         "15" : {
+            "itest-b" : 3796,
+            "itest-c" : 3988
+         },
+         "16" : {
+            "itest-b" : 3796,
+            "itest-c" : 3988
+         },
+         "17" : {
+            "itest-b" : 3796,
+            "itest-c" : 3328
+         },
+         "18" : {
+            "itest-b" : 2848,
+            "itest-c" : 3796
+         },
+         "19" : {
+            "itest-b" : 2848,
+            "itest-c" : 3796
+         },
+         "20" : {
+            "itest-b" : 3796,
+            "itest-c" : 3988
+         },
+         "9" : {
+            "itest-b" : 3796,
+            "itest-c" : 3328
+         }
+      },
+      "delayed" : null,
+      "disagree" : null,
+      "fail_at" : 2,
+      "fail_with" : [ "itest-b", "itest-c" ],
+      "hash" : "c8d2d5",
+      "lag_ms" : {
+         "itest-b" : 11,
+         "itest-c" : 10
+      },
+      "ledger" : 20,
+      "missing" : null,
+      "phase" : "EXTERNALIZE",
+      "validated" : true,
+      "value" : {
+         "t" : 2,
+         "v" : [ "itest-b", "itest-a", "itest-c" ]
+      }
+   },
+   "transitive" : {
+      "critical" : null,
+      "intersection" : true,
+      "last_check_ledger" : 2,
+      "node_count" : 3
+   }
+}

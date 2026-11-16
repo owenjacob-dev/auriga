@@ -1,0 +1,12 @@
+{
+  "info": {
+    "build": "stellar-core 30.0.0 (synthetic)",
+    "ledger": { "age": 41, "num": 61234101, "version": 29 },
+    "network": "Public Global Stellar Network ; September 2015",
+    "peers": { "authenticated_count": 4, "pending_count": 3 },
+    "protocol_version": 30,
+    "quorum": {},
+    "startedOn": "2026-11-16T11:58:00Z",
+    "state": "Catching up"
+  }
+}

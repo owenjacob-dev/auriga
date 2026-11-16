@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -448,5 +451,183 @@ func TestRunOverSSH(t *testing.T) {
 	var he *Error
 	if !errors.As(err, &he) || he.Exit != 3 || !strings.Contains(he.StderrTail, "not found") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestAdminArgAllowlist(t *testing.T) {
+	for _, ok := range []string{"info", "quorum?compact=false", "quorum?compact=false&transitive=true", "peers", "upgrades?mode=get",
+		"sorobaninfo?format=detailed", "dumpproposedsettings?blob=AAAA%2Fb%2B%3D"} {
+		if err := (Arg{ArgAdmin, ok}).Validate(); err != nil {
+			t.Errorf("%q rejected: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"tx?blob=x", "manualclose", "ban?node=G", "surveytopology", "generateload", "upgrades?mode=set&upgradetime=x;reboot",
+		"info'", "info?x=$(id)", "info?a=b c", "quorum/../tx", "INFO", "info?x=/etc"} {
+		if err := (Arg{ArgAdmin, bad}).Validate(); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestAdminGetViaCurlAndHTTPCommand(t *testing.T) {
+	// A tiny admin endpoint on the "host".
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/info" {
+			http.Error(w, "nope", http.StatusNotFound)
+			return
+		}
+		io.WriteString(w, `{"info":{"state":"Synced!"}}`)
+	}))
+	defer srv.Close()
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+	t.Run("curl", func(t *testing.T) {
+		if _, err := exec.LookPath("curl"); err != nil {
+			t.Skip("curl not installed")
+		}
+		h := newFakeHost(t, "dash")
+		r := newDirectRunner(map[string]Conn{"a": h}, nil)
+		res, err := r.AdminGet(ctx(t), "a", port, "info", "/etc/stellar/stellar-core.cfg", "stellar-core")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Status != 200 || res.Via != "curl" || string(res.Body) != `{"info":{"state":"Synced!"}}` {
+			t.Errorf("%+v %q", res, res.Body)
+		}
+		res, err = r.AdminGet(ctx(t), "a", port, "peers", "/etc/stellar/stellar-core.cfg", "stellar-core")
+		if err != nil || res.Status != 404 {
+			t.Errorf("404 case: %+v %v", res, err)
+		}
+	})
+	t.Run("http-command", func(t *testing.T) {
+		// A host without curl: hide it by giving PATH only the shim dir and
+		// the basic tools (no curl there).
+		h := newFakeHost(t, "dash")
+		for i, e := range h.env {
+			if strings.HasPrefix(e, "PATH=") {
+				h.env[i] = "PATH=" + h.bin + ":" + toolsWithoutCurl(t)
+			}
+		}
+		r := newDirectRunner(map[string]Conn{"a": h}, nil)
+		res, err := r.AdminGet(ctx(t), "a", port, "quorum?compact=false", "/etc/stellar/stellar-core.cfg", "stellar-core")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Status != 200 || res.Via != "http-command" || !strings.Contains(string(res.Body), `"http-command"`) {
+			t.Errorf("%+v %q", res, res.Body)
+		}
+		if log := h.argvLog(t); !strings.Contains(log, "http-command quorum?compact=false [cwd="+h.dir+"]") {
+			t.Errorf("argv log %q", log)
+		}
+	})
+}
+
+// toolsWithoutCurl returns a directory of symlinks to the utilities helpers
+// need, without curl.
+func toolsWithoutCurl(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, tool := range []string{"cat", "grep", "sed", "awk", "tr", "head", "tail", "printf", "id", "dirname", "stat", "df", "sha256sum", "cut", "hostname", "sleep"} {
+		if p, err := exec.LookPath(tool); err == nil {
+			os.Symlink(p, filepath.Join(dir, tool))
+		}
+	}
+	return dir
+}
+
+func TestParseAdminGet(t *testing.T) {
+	r, err := parseAdminGet([]byte("{\"a\":1}\n@@status=200 via=curl\n"))
+	if err != nil || r.Status != 200 || r.Via != "curl" || string(r.Body) != `{"a":1}` {
+		t.Errorf("%+v %v", r, err)
+	}
+	r, err = parseAdminGet([]byte("@@status=503 via=curl\n"))
+	if err != nil || r.Status != 503 || len(r.Body) != 0 {
+		t.Errorf("%+v %v", r, err)
+	}
+	if _, err := parseAdminGet([]byte("garbage")); err == nil {
+		t.Error("accepted output without status")
+	}
+}
+
+func TestParseAdminGetStripsHTTPCommandHeaders(t *testing.T) {
+	// Real stdout of `stellar-core http-command info` on 30.0.0.
+	rec, err := os.ReadFile("../../testdata/core/recorded/stellar-core-30.0.0/http-command-info.stdout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := parseAdminGet(append(rec, []byte("\n@@status=200 via=http-command\n")...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(bytes.TrimSpace(r.Body), []byte("{")) || bytes.Contains(r.Body, []byte("Content-Type")) {
+		t.Errorf("body starts %q", r.Body[:min(60, len(r.Body))])
+	}
+	// curl output is never touched, even if it happens to look like headers.
+	r, _ = parseAdminGet([]byte("Content-Type: x\n\nbody\n@@status=200 via=curl\n"))
+	if string(r.Body) != "Content-Type: x\n\nbody" {
+		t.Errorf("curl body changed: %q", r.Body)
+	}
+}
+
+func TestConcurrentHelpersAskForSudoOnce(t *testing.T) {
+	h := newFakeHost(t, "dash", "SHIM_SUDO=password", "SHIM_SUDO_PASSWORD=pw")
+	p := &countingPrompter{passwords: []string{"pw", "pw", "pw", "pw"}}
+	r := newDirectRunner(map[string]Conn{"a": h}, p)
+	var wg sync.WaitGroup
+	errs := make(chan error, 4)
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := r.Probe(ctx(t), "a", "/x/y.cfg", "stellar-core")
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	if len(p.asked) != 1 {
+		t.Errorf("asked for the sudo password %d times, want once", len(p.asked))
+	}
+}
+
+// TestCoreRunsFromServiceWorkDir checks that stellar-core runs where the
+// service runs, so relative config paths resolve as they do for the node.
+// The packaged unit sets no WorkingDirectory, which systemd runs from "/".
+func TestCoreRunsFromServiceWorkDir(t *testing.T) {
+	for _, tc := range []struct {
+		name, workdir, wantCwd, wantBucket string
+	}{
+		{"unit sets WorkingDirectory", "", "", ""}, // expectations filled in below
+		{"packaged unit without WorkingDirectory", "-", "/", "/buckets"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newFakeHost(t, "dash")
+			want, bucket := tc.wantCwd, tc.wantBucket
+			if tc.workdir == "-" {
+				for i, e := range h.env {
+					if strings.HasPrefix(e, "SHIM_WORKDIR=") {
+						h.env[i] = "SHIM_WORKDIR="
+					}
+				}
+			} else {
+				want, bucket = h.dir, filepath.Join(h.dir, "buckets")
+			}
+			cfg := writeConfig(t, h, sampleConfig, 0o640) // BUCKET_DIR_PATH="buckets" (relative)
+			f, err := newDirectRunner(map[string]Conn{"a": h}, nil).Probe(ctx(t), "a", cfg, "stellar-core")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f.ServiceWorkDir != want || f.BucketDir != bucket {
+				t.Errorf("workdir %q bucket %q, want %q %q", f.ServiceWorkDir, f.BucketDir, want, bucket)
+			}
+			if log := h.argvLog(t); !strings.Contains(log, "version [cwd="+want+"]") {
+				t.Errorf("stellar-core version did not run from %s:\n%s", want, log)
+			}
+		})
 	}
 }

@@ -32,7 +32,8 @@ else
 	*" "*) node_alias=${val#* } ;;
 	esac
 	if [ -n "$seed" ]; then
-		pubkey=$(printf '%s\n' "$seed" | sudo -n -u stellar -- stellar-core --conf "$config" sec-to-pub 2>/dev/null | tail -n 1 | tr -d '[:space:]')
+		# sec-to-pub takes no --conf (stellar-core 30 rejects it).
+		pubkey=$(printf '%s\n' "$seed" | sudo -n -u stellar -- stellar-core sec-to-pub 2>/dev/null | tail -n 1 | tr -d '[:space:]')
 	fi
 	unset seed val line
 	if ! printf '%s' "$pubkey" | grep -Eq '^G[A-Z2-7]{55}$'; then

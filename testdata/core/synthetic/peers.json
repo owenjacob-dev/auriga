@@ -1,0 +1,11 @@
+{
+  "authenticated_peers": {
+    "inbound": [
+      { "address": "10.0.0.2:52110", "elapsed": 3600, "id": "GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q", "latency": 12, "olver": 35, "ver": "stellar-core 30.0.0 (synthetic)" }
+    ],
+    "outbound": [
+      { "address": "203.0.113.9:11625", "elapsed": 7200, "id": "GDVEU3DD4KOFECV66VIHWEZOYX4ZKR3WV27L464SIIPOU2IUI3JCZA57", "latency": 85, "olver": 35, "ver": "stellar-core 29.1.0 (synthetic)" }
+    ]
+  },
+  "pending_peers": { "inbound": [], "outbound": [ { "address": "198.51.100.4:11625" } ] }
+}

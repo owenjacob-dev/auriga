@@ -1,0 +1,52 @@
+{
+   "authenticated_peers" : {
+      "inbound" : [
+         {
+            "address" : "172.20.0.2:11625",
+            "elapsed" : 92,
+            "flow_control" : {
+               "local_capacity" : {
+                  "flood" : 200,
+                  "reading" : 201
+               },
+               "local_capacity_bytes" : {
+                  "flood" : 300000,
+                  "reading" : 17825796
+               },
+               "peer_capacity" : 170,
+               "peer_capacity_bytes" : 288120
+            },
+            "id" : "itest-c",
+            "latency" : 1,
+            "olver" : 43,
+            "ver" : "stellar-core 30.0.0 (0e49751aa9ddf892302cca02cea7f3f5d97df9f1)"
+         }
+      ],
+      "outbound" : [
+         {
+            "address" : "172.21.0.4:11625",
+            "elapsed" : 92,
+            "flow_control" : {
+               "local_capacity" : {
+                  "flood" : 200,
+                  "reading" : 201
+               },
+               "local_capacity_bytes" : {
+                  "flood" : 300000,
+                  "reading" : 17825796
+               },
+               "peer_capacity" : 176,
+               "peer_capacity_bytes" : 290036
+            },
+            "id" : "itest-b",
+            "latency" : 1,
+            "olver" : 43,
+            "ver" : "stellar-core 30.0.0 (0e49751aa9ddf892302cca02cea7f3f5d97df9f1)"
+         }
+      ]
+   },
+   "pending_peers" : {
+      "inbound" : null,
+      "outbound" : null
+   }
+}

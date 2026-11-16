@@ -32,7 +32,8 @@ type ProbeFacts struct {
 	ConfigMode     string // octal, e.g. "640"
 	ConfigOwner    string // "root:stellar"
 	ConfigSHA256   string
-	HTTPPort       int // from the config; 0 when unset
+	HTTPPort       int    // from the config; 0 when unset
+	ServiceWorkDir string // where the service runs; relative config paths start here
 	BucketDir      string
 	DiskTotalKB    int64
 	DiskAvailKB    int64
@@ -80,6 +81,7 @@ func parseProbe(out []byte) (ProbeFacts, error) {
 	f.ConfigOwner = kv["config_owner"]
 	f.ConfigSHA256 = kv["config_sha256"]
 	f.HTTPPort = int(num("http_port"))
+	f.ServiceWorkDir = kv["service_workdir"]
 	f.BucketDir = kv["bucket_dir"]
 	f.DiskTotalKB = num("disk_total_kb")
 	f.DiskAvailKB = num("disk_avail_kb")
@@ -159,4 +161,71 @@ func parseReadConfig(out []byte) (RedactedConfig, error) {
 		return RedactedConfig{}, fmt.Errorf("host returned an invalid public key %q", rc.PublicKey)
 	}
 	return rc, nil
+}
+
+// AdminResponse is the result of an admin request made on the host.
+type AdminResponse struct {
+	Status int
+	Body   []byte
+	Via    string // "curl" or "http-command"
+}
+
+// AdminGet requests cmd (e.g. "quorum?compact=false") from the admin
+// endpoint by running curl, or stellar-core http-command, on the host.
+func (r *Runner) AdminGet(ctx context.Context, alias string, port int, cmd, configPath, service string) (AdminResponse, error) {
+	res, err := r.Run(ctx, alias, HelperAdminGet, []Arg{
+		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgPath, configPath}, {ArgName, service},
+	}, RunOptions{})
+	if err != nil {
+		return AdminResponse{}, err
+	}
+	return parseAdminGet(res.Stdout)
+}
+
+func parseAdminGet(out []byte) (AdminResponse, error) {
+	out = bytes.TrimRight(out, "\n")
+	i := bytes.LastIndex(out, []byte("\n@@status="))
+	var trailer []byte
+	switch {
+	case i >= 0:
+		trailer, out = out[i+1:], out[:i]
+	case bytes.HasPrefix(out, []byte("@@status=")):
+		trailer, out = out, nil
+	default:
+		return AdminResponse{}, errors.New("admin-get printed no status line")
+	}
+	var r AdminResponse
+	for _, f := range strings.Fields(string(trailer)) {
+		k, v, _ := strings.Cut(f, "=")
+		switch k {
+		case "@@status":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return AdminResponse{}, fmt.Errorf("bad status %q", v)
+			}
+			r.Status = n
+		case "via":
+			r.Via = v
+		}
+	}
+	if r.Via == "http-command" {
+		out = stripHTTPHeaders(out)
+	}
+	r.Body = out
+	return r, nil
+}
+
+// stripHTTPHeaders removes the header block `stellar-core http-command`
+// prints before the body on current builds ("Content-Length: …",
+// "Content-Type: …", blank line). Output without headers is unchanged.
+func stripHTTPHeaders(out []byte) []byte {
+	if !bytes.HasPrefix(out, []byte("Content-")) && !bytes.HasPrefix(out, []byte("HTTP/")) {
+		return out
+	}
+	for _, sep := range [][]byte{[]byte("\r\n\r\n"), []byte("\n\n")} {
+		if i := bytes.Index(out, sep); i >= 0 {
+			return out[i+len(sep):]
+		}
+	}
+	return out
 }

@@ -1,0 +1,24 @@
+┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ● ok  acme-a   Info [Quorum] Peers  Upgrades  Config  Probe                  │
+│                                                                              │
+│ Ledger        1234  phase EXTERNALIZE                                        │
+│ Agree         2                                                              │
+│ fail_at       1  (nodes that can fail before this node loses quorum)         │
+│ fail_with     acme-b (GAB2…QZ6Q)                                             │
+│ Missing       1                                                              │
+│     GDVE…ZA57                                                                │
+│ Disagree      none                                                           │
+│ Delayed       none                                                           │
+│                                                                              │
+│ Transitive                                                                   │
+│ Intersection  ● yes                                                          │
+│ Nodes         3  (checked at ledger 1200)                                    │
+│ Critical                                                                     │
+│     acme-b (GAB2…QZ6Q)                                                       │
+│                                                                              │
+│ Quorum set                                                                   │
+│   2 of 2                                                                     │
+│     acme-a (GBRP…OX2H)                                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel · fetched 0s ago                         │
+└ tab next  r refresh  t transitive  c copy  esc back  ? help  q quit ─────────┘

@@ -29,9 +29,9 @@ fi
 if command -v stellar-core >/dev/null 2>&1; then
 	kv core_installed yes
 	if [ -r "$config" ]; then
-		version=$(sudo -n -u stellar -- stellar-core --conf "$config" version 2>/dev/null | head -n 1)
+		version=$(auriga_core "$service" --conf "$config" version 2>/dev/null | head -n 1)
 	else
-		version=$(sudo -n -u stellar -- stellar-core version 2>/dev/null | head -n 1)
+		version=$(auriga_core "$service" version 2>/dev/null | head -n 1)
 	fi
 	kv core_version "$version"
 else
@@ -42,9 +42,10 @@ if command -v systemctl >/dev/null 2>&1; then
 	kv service_load "$(systemctl show -p LoadState --value "$service" 2>/dev/null)"
 	kv service_active "$(systemctl is-active "$service" 2>/dev/null)"
 	kv service_enabled "$(systemctl is-enabled "$service" 2>/dev/null)"
-	workdir=$(systemctl show -p WorkingDirectory --value "$service" 2>/dev/null)
 fi
-[ -n "$workdir" ] || workdir=/var/lib/stellar
+# Where the service runs, and so where relative config paths point.
+workdir=$(auriga_workdir "$service")
+kv service_workdir "$workdir"
 
 if [ -e "$config" ]; then
 	kv config_present yes
@@ -60,7 +61,7 @@ fi
 [ -n "$bucket" ] || bucket=buckets
 case "$bucket" in
 /*) ;;
-*) bucket=$workdir/$bucket ;;
+*) bucket=${workdir%/}/$bucket ;;
 esac
 # df needs an existing path: walk up to the nearest existing parent.
 dir=$bucket

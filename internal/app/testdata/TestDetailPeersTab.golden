@@ -1,0 +1,24 @@
+┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ● ok  acme-a   Info  Quorum [Peers] Upgrades  Config  Probe                  │
+│                                                                              │
+│ DIR NODE                  ADDRESS               LATENCY  VERSION UP          │
+│ in  acme-b (GAB2…QZ6Q)    10.0.0.2:52110        12ms     30.0.0  60m         │
+│ out GDVE…ZA57             203.0.113.9:11625     85ms     29.1.0  120m        │
+│ out —                     198.51.100.4:11625    pending  —       —           │
+│                                                                              │
+│ 2 authenticated (1 in, 1 out), 1 pending                                     │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel · fetched 0s ago                         │
+└ tab next  r refresh  c copy  esc back  ? help  q quit ───────────────────────┘

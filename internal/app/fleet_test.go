@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
@@ -38,12 +39,17 @@ type fakeBackend struct {
 	probeErr  map[string]error
 	events    chan sshx.Event
 	closed    bool
+
+	admin      map[string]map[string][]byte // alias -> command name -> body
+	adminErr   map[string]error
+	adminCalls []string
 }
 
 func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
 	return &fakeBackend{
 		inv: inv, events: make(chan sshx.Event),
 		facts: map[string]remote.ProbeFacts{}, configs: map[string]remote.RedactedConfig{}, probeErr: map[string]error{},
+		admin: map[string]map[string][]byte{}, adminErr: map[string]error{},
 	}
 }
 
@@ -78,6 +84,10 @@ func (f *fakeBackend) LoadInventory() (*inventory.Inventory, error) {
 	}
 	return f.inv, nil
 }
+func (f *fakeBackend) LoadSettings() (inventory.Settings, error) {
+	return inventory.DefaultSettings(), nil
+}
+
 func (f *fakeBackend) SaveInventory(inv *inventory.Inventory) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -88,6 +98,34 @@ func (f *fakeBackend) SaveInventory(inv *inventory.Inventory) error {
 	return nil
 }
 func (f *fakeBackend) Close() { f.closed = true }
+
+func (f *fakeBackend) AdminClient(alias string, _ int, _, _ string) *corehttp.Client {
+	return corehttp.New(&fakeAdmin{f: f, alias: alias})
+}
+
+func (f *fakeBackend) ResetAdmin(string) {}
+
+// fakeAdmin answers admin requests from fakeBackend.admin[alias][command].
+type fakeAdmin struct {
+	f     *fakeBackend
+	alias string
+}
+
+func (a *fakeAdmin) Name() string { return "ssh tunnel" }
+
+func (a *fakeAdmin) Do(_ context.Context, cmd corehttp.Command) (int, []byte, error) {
+	a.f.mu.Lock()
+	defer a.f.mu.Unlock()
+	a.f.adminCalls = append(a.f.adminCalls, a.alias+" "+cmd.String())
+	if err := a.f.adminErr[a.alias]; err != nil {
+		return 0, nil, err
+	}
+	body, ok := a.f.admin[a.alias][cmd.Name()]
+	if !ok {
+		return 404, []byte("unknown command"), nil
+	}
+	return 200, body, nil
+}
 
 func (f *fakeBackend) lastSaved() *inventory.Inventory {
 	f.mu.Lock()
@@ -214,7 +252,9 @@ func TestLoadConnectProbeAndGroup(t *testing.T) {
 	// Detail view for the selected host.
 	m = step(t, m, keyPress("k"))
 	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}) // Info -> Probe
 	out := ansi.Strip(m.Render())
+	out += ansi.Strip(step(t, m, keyPress("pgdown")).Render())
 	for _, want := range []string{"Node public key   " + pubB, "config is world-readable (mode 644)", "only 5G free"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("detail lacks %q:\n%s", want, out)
