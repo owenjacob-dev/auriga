@@ -20,6 +20,9 @@ sec-to-pub)
 	*) echo "invalid seed" >&2; exit 1 ;;
 	esac
 	;;
+http-command)
+	printf '{"shim":"http-command","cmd":"%s"}\n' "$2"
+	;;
 *)
 	echo "stellar-core shim: unsupported command $1" >&2
 	exit 1

@@ -160,3 +160,52 @@ func parseReadConfig(out []byte) (RedactedConfig, error) {
 	}
 	return rc, nil
 }
+
+// AdminResponse is the result of an admin request made on the host.
+type AdminResponse struct {
+	Status int
+	Body   []byte
+	Via    string // "curl" or "http-command"
+}
+
+// AdminGet requests cmd (e.g. "quorum?compact=false") from the admin
+// endpoint by running curl, or stellar-core http-command, on the host.
+func (r *Runner) AdminGet(ctx context.Context, alias string, port int, cmd, configPath string) (AdminResponse, error) {
+	res, err := r.Run(ctx, alias, HelperAdminGet, []Arg{
+		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgPath, configPath},
+	}, RunOptions{})
+	if err != nil {
+		return AdminResponse{}, err
+	}
+	return parseAdminGet(res.Stdout)
+}
+
+func parseAdminGet(out []byte) (AdminResponse, error) {
+	out = bytes.TrimRight(out, "\n")
+	i := bytes.LastIndex(out, []byte("\n@@status="))
+	var trailer []byte
+	switch {
+	case i >= 0:
+		trailer, out = out[i+1:], out[:i]
+	case bytes.HasPrefix(out, []byte("@@status=")):
+		trailer, out = out, nil
+	default:
+		return AdminResponse{}, errors.New("admin-get printed no status line")
+	}
+	var r AdminResponse
+	for _, f := range strings.Fields(string(trailer)) {
+		k, v, _ := strings.Cut(f, "=")
+		switch k {
+		case "@@status":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return AdminResponse{}, fmt.Errorf("bad status %q", v)
+			}
+			r.Status = n
+		case "via":
+			r.Via = v
+		}
+	}
+	r.Body = out
+	return r, nil
+}

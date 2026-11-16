@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -448,5 +451,100 @@ func TestRunOverSSH(t *testing.T) {
 	var he *Error
 	if !errors.As(err, &he) || he.Exit != 3 || !strings.Contains(he.StderrTail, "not found") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestAdminArgAllowlist(t *testing.T) {
+	for _, ok := range []string{"info", "quorum?compact=false", "quorum?compact=false&transitive=true", "peers", "upgrades?mode=get",
+		"sorobaninfo?format=detailed", "dumpproposedsettings?blob=AAAA%2Fb%2B%3D"} {
+		if err := (Arg{ArgAdmin, ok}).Validate(); err != nil {
+			t.Errorf("%q rejected: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"tx?blob=x", "manualclose", "ban?node=G", "surveytopology", "generateload", "upgrades?mode=set&upgradetime=x;reboot",
+		"info'", "info?x=$(id)", "info?a=b c", "quorum/../tx", "INFO", "info?x=/etc"} {
+		if err := (Arg{ArgAdmin, bad}).Validate(); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestAdminGetViaCurlAndHTTPCommand(t *testing.T) {
+	// A tiny admin endpoint on the "host".
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/info" {
+			http.Error(w, "nope", http.StatusNotFound)
+			return
+		}
+		io.WriteString(w, `{"info":{"state":"Synced!"}}`)
+	}))
+	defer srv.Close()
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+	t.Run("curl", func(t *testing.T) {
+		if _, err := exec.LookPath("curl"); err != nil {
+			t.Skip("curl not installed")
+		}
+		h := newFakeHost(t, "dash")
+		r := newDirectRunner(map[string]Conn{"a": h}, nil)
+		res, err := r.AdminGet(ctx(t), "a", port, "info", "/etc/stellar/stellar-core.cfg")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Status != 200 || res.Via != "curl" || string(res.Body) != `{"info":{"state":"Synced!"}}` {
+			t.Errorf("%+v %q", res, res.Body)
+		}
+		res, err = r.AdminGet(ctx(t), "a", port, "peers", "/etc/stellar/stellar-core.cfg")
+		if err != nil || res.Status != 404 {
+			t.Errorf("404 case: %+v %v", res, err)
+		}
+	})
+	t.Run("http-command", func(t *testing.T) {
+		// A host without curl: hide it by giving PATH only the shim dir and
+		// the basic tools (no curl there).
+		h := newFakeHost(t, "dash")
+		for i, e := range h.env {
+			if strings.HasPrefix(e, "PATH=") {
+				h.env[i] = "PATH=" + h.bin + ":" + toolsWithoutCurl(t)
+			}
+		}
+		r := newDirectRunner(map[string]Conn{"a": h}, nil)
+		res, err := r.AdminGet(ctx(t), "a", port, "quorum?compact=false", "/etc/stellar/stellar-core.cfg")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Status != 200 || res.Via != "http-command" || !strings.Contains(string(res.Body), `"http-command"`) {
+			t.Errorf("%+v %q", res, res.Body)
+		}
+		if log := h.argvLog(t); !strings.Contains(log, "http-command quorum?compact=false") {
+			t.Errorf("argv log %q", log)
+		}
+	})
+}
+
+// toolsWithoutCurl returns a directory of symlinks to the utilities helpers
+// need, without curl.
+func toolsWithoutCurl(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, tool := range []string{"cat", "grep", "sed", "awk", "tr", "head", "tail", "printf", "id", "dirname", "stat", "df", "sha256sum", "cut", "hostname", "sleep"} {
+		if p, err := exec.LookPath(tool); err == nil {
+			os.Symlink(p, filepath.Join(dir, tool))
+		}
+	}
+	return dir
+}
+
+func TestParseAdminGet(t *testing.T) {
+	r, err := parseAdminGet([]byte("{\"a\":1}\n@@status=200 via=curl\n"))
+	if err != nil || r.Status != 200 || r.Via != "curl" || string(r.Body) != `{"a":1}` {
+		t.Errorf("%+v %v", r, err)
+	}
+	r, err = parseAdminGet([]byte("@@status=503 via=curl\n"))
+	if err != nil || r.Status != 503 || len(r.Body) != 0 {
+		t.Errorf("%+v %v", r, err)
+	}
+	if _, err := parseAdminGet([]byte("garbage")); err == nil {
+		t.Error("accepted output without status")
 	}
 }

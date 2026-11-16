@@ -27,6 +27,7 @@ type Helper string
 const (
 	HelperProbe      Helper = "probe"
 	HelperReadConfig Helper = "read-config"
+	HelperAdminGet   Helper = "admin-get"
 )
 
 func script(h Helper) ([]byte, error) {
