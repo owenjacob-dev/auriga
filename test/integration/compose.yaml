@@ -1,16 +1,56 @@
 # Docker Compose stack for `make itest`.
 #
-# M0 holds a single placeholder host so the target runs end to end. M1 replaces
-# it with three sshd hosts plus a ProxyJump bastion; M2 adds stellar-core on a
-# private network passphrase. Tests never point at testnet or pubnet.
+# host-a and host-b are published on localhost. host-c sits only on the
+# back network and is reached through the bastion with ProxyJump. Seeds here
+# are public test vectors; tests never point at testnet or pubnet.
 name: auriga-itest
 
+x-host: &host
+  build:
+    context: ../..
+    dockerfile: test/integration/host/Dockerfile
+  image: auriga-itest-host:latest
+  init: true
+  volumes:
+    - ./.work/keys:/keys:ro
+  healthcheck:
+    test: ["CMD-SHELL", "test -s /home/op/.ssh/authorized_keys && pgrep -x sshd"]
+    interval: 1s
+    retries: 30
+
 services:
+  bastion:
+    <<: *host
+    networks: [front, back]
+    ports: ["127.0.0.1:2220:22"]
+
   host-a:
-    image: ubuntu:24.04
-    command: ["sleep", "infinity"]
-    init: true
-    healthcheck:
-      test: ["CMD", "true"]
-      interval: 2s
-      retries: 5
+    <<: *host
+    networks: [front]
+    ports: ["127.0.0.1:2221:22"]
+    environment:
+      SUDO_MODE: nopasswd
+      NODE_SEED_VALUE: SDHOAMBNLGCE2MV5ZKIVZAQD3VCLGP53P3OBSBI6UN5L5XZI5TKHFQL4
+      NODE_ALIAS: itest-a
+
+  host-b:
+    <<: *host
+    networks: [front]
+    ports: ["127.0.0.1:2222:22"]
+    environment:
+      SUDO_MODE: password
+      NODE_SEED_VALUE: SAAACAQDAQCQMBYIBEFAWDANBYHRAEISCMKBKFQXDAMRUGY4DUPB6NKI
+      NODE_ALIAS: itest-b
+
+  host-c:
+    <<: *host
+    networks: [back]
+    environment:
+      SUDO_MODE: nopasswd
+      NODE_SEED_VALUE: SDHOAMBNLGCE2MV5ZKIVZAQD3VCLGP53P3OBSBI6UN5L5XZI5TKHFQL4
+      NODE_ALIAS: itest-c
+
+networks:
+  front: {}
+  back:
+    internal: true
