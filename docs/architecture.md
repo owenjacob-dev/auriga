@@ -68,6 +68,17 @@ a `RenderOptions` time, so the same input always gives the same bytes;
 unconfigured, adoptable or read-only. The root model runs both after every
 probe.
 
+## Quorum, presets and the wizard
+
+`internal/quorum` mirrors stellar-core's quorum-set generation (orgs need a
+simple majority; quality levels nest with 67% thresholds) and its safety
+rule, and is tested against sets stellar-core 30 generated. `internal/presets`
+embeds the testnet and pubnet presets and handles refresh overrides.
+`internal/ui/wizard` holds the pure `Draft` and `BuildPlan` (answers in,
+per-host configs, actions and issues out) and the screen that edits a draft
+step by step. The plan's configs are what the deploy flow (M5) stages; keys
+generated on hosts are pending until then.
+
 ## Polling and health
 
 The root model polls each connected host's `info` on its own `tea.Tick`
