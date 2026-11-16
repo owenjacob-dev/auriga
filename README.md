@@ -4,9 +4,10 @@ Auriga is an open-source terminal UI for configuring, deploying and monitoring
 Stellar validators (stellar-core) over SSH, usually an organisation's three
 validators from one screen.
 
-> **Status:** early development. The app currently shows an empty dashboard;
-> SSH connections, monitoring, the setup wizard, deploys and network upgrade
-> votes arrive in the milestones listed in [`SPEC.md`](SPEC.md).
+> **Status:** early development, not yet released. SSH connections, live
+> monitoring, the setup wizard, deploys with automatic rollback, and the audit
+> log work; network upgrade votes and the first release are the remaining
+> milestones in [`SPEC.md`](SPEC.md).
 
 ## What it will do (v1)
 

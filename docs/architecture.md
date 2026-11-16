@@ -45,9 +45,13 @@ helper asks for it with `auriga_read_secret`; see `docs/decisions.md` for why
 (dash reads piped scripts in blocks). Arguments are allowlist-checked, then
 single-quoted.
 
-Helpers so far: `probe.sh` (host facts as `key=value` lines) and
+Read-only helpers: `probe.sh` (host facts as `key=value` lines),
 `read-config.sh` (the config with `NODE_SEED` replaced on the host by
-`<redacted:G…>`).
+`<redacted:G…>`), `admin-get.sh`, `list-backups.sh` and `check-archive.sh`.
+Deploy helpers: `preflight.sh`, `gen-seed.sh`, `stage.sh` (the render arrives
+as a base64 argument; the seed is taken from the current config, the pending
+generated seed, or stdin, and substituted with shell built-ins), `stage-backup.sh`,
+`backup.sh`, `install.sh`, `init.sh`, `restart.sh` and `rollback.sh`.
 
 ## Admin endpoint (`internal/corehttp`)
 
@@ -78,6 +82,16 @@ embeds the testnet and pubnet presets and handles refresh overrides.
 per-host configs, actions and issues out) and the screen that edits a draft
 step by step. The plan's configs are what the deploy flow (M5) stages; keys
 generated on hosts are pending until then.
+
+## Deploys (`internal/deploy`, `internal/audit`)
+
+The coordinator runs a reviewed plan host by host through an `Ops` interface
+(implemented in `internal/app` with the helpers and the admin client) and
+reports `Event`s, which the root model feeds to the deploy screen. It never
+touches the UI and the UI never blocks on it. Failures before install leave a
+host unchanged; from install on, the backup is restored. Every step that
+changes a host appends a redacted JSON line to the audit log. Manual rollback
+is the same run with a backup staged instead of a render.
 
 ## Polling and health
 
