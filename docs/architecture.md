@@ -18,6 +18,45 @@ milestone.
 - `Update` never blocks or does I/O. Remote work will run in one worker
   goroutine per host (M1), and results come back as messages.
 
+## SSH layer (`internal/sshx`)
+
+- `ListAliases` reads concrete `Host` names from `~/.ssh/config`, following
+  `Include`. `Resolver` resolves an alias with `ssh -G` (or
+  `kevinburke/ssh_config` without OpenSSH). The home directory comes from the
+  password database, as OpenSSH's does.
+- `Dialer` authenticates with agent keys, then each `IdentityFile`. An
+  encrypted key asks for its passphrase only when the server accepts the key.
+  Host keys are checked against known_hosts; unknown keys go to the operator
+  through the `Prompter`. `ProxyJump` hops are dialled through the previous
+  client, each with the same checks.
+- `Pool` runs one worker goroutine per host. The worker owns the connection,
+  sends keepalives, reconnects with backoff, and serves `Run` requests with
+  at most four channels open. It reports `StateEvent`s and `PromptEvent`s on
+  one channel the UI reads.
+- `sshtest` is an in-process SSH server for tests.
+
+## Remote helpers (`internal/remote`)
+
+Every remote action is an embedded script run as
+`sudo -n -- sh -s -- 'arg'…` (or `sudo -k -S -p '' …` with the password as
+the first stdin line). The script follows on stdin, wrapped in a function so
+`sh` parses it whole before running it. A secret is written only after the
+helper asks for it with `auriga_read_secret`; see `docs/decisions.md` for why
+(dash reads piped scripts in blocks). Arguments are allowlist-checked, then
+single-quoted.
+
+Helpers so far: `probe.sh` (host facts as `key=value` lines) and
+`read-config.sh` (the config with `NODE_SEED` replaced on the host by
+`<redacted:G…>`).
+
+## Root model and fleet
+
+The root model owns the inventory and a `ui.Fleet` (one `HostView` per host).
+It talks to the outside world through the `app.Backend` interface, only from
+commands. Screens read the fleet and return intents (`AddHostsMsg`,
+`RemoveHostMsg`, `RefreshHostMsg`, …); prompts queue as an overlay above any
+screen. Each host is probed whenever its connection comes up.
+
 ## Panic safety
 
 Bubble Tea's own panic handler is turned off because it prints unredacted
