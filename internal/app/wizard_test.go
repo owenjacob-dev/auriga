@@ -220,3 +220,19 @@ func TestWizardResumesDraftAndHistoryChecks(t *testing.T) {
 		t.Fatalf("missing aws on acme-b did not block:\n%s", out)
 	}
 }
+
+func TestWizardKeepsAdoptedAlias(t *testing.T) {
+	cmdWait = 15 * time.Millisecond
+	t.Cleanup(func() { cmdWait = 100 * time.Millisecond })
+	b := newFakeBackend(testInventory("host-1"))
+	b.facts["host-1"] = healthyFacts
+	b.configs["host-1"] = remote.RedactedConfig{PublicKey: pubA, Seed: remote.SeedPresent, NodeAlias: "acme-a",
+		Text: cfgText("acme.example", "Test SDF Network ; September 2015")}
+	m := startModel(t, b)
+	m = step(t, m, connected("host-1"))
+	// Scope (home domain prefilled from the host), network, node type.
+	m = keys(t, m, "s", "enter", "enter", "enter", "enter", "enter")
+	if out := screen(m); !strings.Contains(out, "[4 Keys]") || !strings.Contains(out, "> acme-a") || !strings.Contains(out, "Keep the existing seed") {
+		t.Fatalf("alias not taken from NODE_SEED:\n%s", out)
+	}
+}

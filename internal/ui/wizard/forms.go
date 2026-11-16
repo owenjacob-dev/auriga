@@ -78,7 +78,7 @@ func (m *Model) buildForm() *huh.Form {
 			huh.NewInput().Title("Organisation name").Description("A short name for this org in Auriga, e.g. acme.").Value(&d.OrgName).Validate(notEmpty("a name")),
 			huh.NewInput().Title("Home domain (NODE_HOME_DOMAIN)").Description("The domain that publishes your stellar.toml, e.g. acme.org.").Value(&d.HomeDomain).Validate(notEmpty("a home domain")),
 			huh.NewMultiSelect[string]().Title("Hosts in this org").Description("space selects; read-only and unprobed hosts are not listed").
-				Options(opts...).Value(&d.Hosts).Height(min(len(opts), 8)+2),
+				Options(opts...).Value(&d.Hosts).Height(min(len(opts), 8)+4),
 		))
 
 	case StepNetwork:
@@ -96,7 +96,7 @@ func (m *Model) buildForm() *huh.Form {
 			groups = append(groups, huh.NewGroup(
 				huh.NewMultiSelect[string]().Title("These hosts are on another network").
 					Description("Switching runs new-db, which wipes the node's local ledger state. Select each host to accept that.").
-					Options(opts...).Value(&d.NewDBAccepted),
+					Options(opts...).Value(&d.NewDBAccepted).Height(min(len(opts), 8)+4),
 			))
 		}
 
@@ -121,7 +121,12 @@ func (m *Model) buildForm() *huh.Form {
 				}
 			}
 			if k.Alias == "" {
+				// Keep an adopted node's name: it is its NODE_SEED alias and
+				// the NAME its siblings already use for it.
 				k.Alias = h
+				if f.Existing != nil && f.Existing.NodeSeed != nil && f.Existing.NodeSeed.Alias != "" {
+					k.Alias = f.Existing.NodeSeed.Alias
+				}
 			}
 			kp := &k
 			m.fs.keys[h] = kp
@@ -173,7 +178,7 @@ func (m *Model) buildForm() *huh.Form {
 			}
 			if len(opts) > 1 {
 				fields = append(fields, huh.NewMultiSelect[string]().Title("Preset orgs to trust").Options(opts...).
-					Value(&d.Quorum.PresetDomains).Height(min(len(opts), 8)+2))
+					Value(&d.Quorum.PresetDomains).Height(min(len(opts), 8)+4))
 			}
 		}
 		fields = append(fields, huh.NewText().Title("Other orgs and validators (optional)").

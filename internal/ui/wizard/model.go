@@ -134,6 +134,40 @@ func (m *Model) Keys() []key.Binding {
 	return []key.Binding{kNext, kBack}
 }
 
+// prefill starts a new draft from what the hosts already run: home
+// domain, network and node type of the first adopted host.
+func (m *Model) prefill() {
+	for _, f := range m.facts() {
+		c := f.Existing
+		if c == nil {
+			continue
+		}
+		if m.draft.HomeDomain == "" {
+			m.draft.HomeDomain = c.NodeHomeDomain
+		}
+		for net, pass := range Passphrases {
+			if c.NetworkPassphrase == pass {
+				m.draft.Network = net
+			}
+		}
+		publishes := false
+		for _, h := range c.History {
+			publishes = publishes || h.Put != ""
+		}
+		switch validator := c.NodeIsValidator != nil && *c.NodeIsValidator; {
+		case validator && publishes:
+			m.draft.NodeType = TypeFull
+		case validator:
+			m.draft.NodeType = TypeBasic
+		case publishes:
+			m.draft.NodeType = TypeArchiver
+		default:
+			m.draft.NodeType = TypeWatcher
+		}
+		return
+	}
+}
+
 // archiveResult is an archive check and the spec it checked.
 type archiveResult struct {
 	ArchiveCheckedMsg
@@ -306,6 +340,8 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		resumed := msg.Draft != nil
 		if resumed {
 			m.draft = msg.Draft
+		} else {
+			m.prefill()
 		}
 		cmd := m.goTo(max(StepScope, min(m.draft.Step, StepAdvanced)))
 		if resumed {
