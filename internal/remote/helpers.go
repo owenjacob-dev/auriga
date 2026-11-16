@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/owenjacob-dev/auriga/internal/strkey"
 )
@@ -228,4 +230,52 @@ func stripHTTPHeaders(out []byte) []byte {
 		}
 	}
 	return out
+}
+
+// Backup is one of Auriga's config backups on a host.
+type Backup struct {
+	Path  string
+	Time  time.Time // from the file name (UTC); the file's mtime if absent
+	Size  int64
+	Owner string // "root:stellar"
+	Mode  string // "640"
+}
+
+// ListBackups lists the backups of configPath, newest first.
+func (r *Runner) ListBackups(ctx context.Context, alias, configPath string) ([]Backup, error) {
+	res, err := r.Run(ctx, alias, HelperBackups, []Arg{{ArgPath, configPath}}, RunOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return parseBackups(res.Stdout), nil
+}
+
+func parseBackups(out []byte) []Backup {
+	var list []Backup
+	for _, line := range strings.Split(string(out), "\n") {
+		rest, ok := strings.CutPrefix(line, "backup=")
+		if !ok {
+			continue
+		}
+		f := strings.Split(rest, "\t")
+		if len(f) != 5 {
+			continue
+		}
+		b := Backup{Path: f[0], Owner: f[3], Mode: f[4]}
+		b.Size, _ = strconv.ParseInt(f[2], 10, 64)
+		if i := strings.LastIndex(f[0], ".auriga-"); i >= 0 {
+			stamp := strings.TrimSuffix(f[0][i+len(".auriga-"):], ".bak")
+			if t, err := time.Parse("20060102T150405Z", stamp); err == nil {
+				b.Time = t
+			}
+		}
+		if b.Time.IsZero() {
+			if sec, err := strconv.ParseInt(f[1], 10, 64); err == nil {
+				b.Time = time.Unix(sec, 0).UTC()
+			}
+		}
+		list = append(list, b)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Time.After(list[j].Time) })
+	return list
 }
