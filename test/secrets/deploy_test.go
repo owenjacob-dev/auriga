@@ -38,7 +38,14 @@ const (
 // through the live backend, the SSH server and the host helpers, with
 // --debug logging and the audit log on. The seed may exist only in the
 // staged and installed config on the host, never on this machine.
-func TestDeployImportDoesNotLeak(t *testing.T) {
+func TestDeployImportDoesNotLeak(t *testing.T) { deployDoesNotLeak(t, stellarcfg.SeedImport) }
+
+// TestDeployGenerateDoesNotLeak is the same with a seed generated on the
+// host (the stellar-core shim's gen-seed prints importSeed), which this
+// machine must only ever see as its public key.
+func TestDeployGenerateDoesNotLeak(t *testing.T) { deployDoesNotLeak(t, stellarcfg.SeedGenerate) }
+
+func deployDoesNotLeak(t *testing.T, mode stellarcfg.SeedMode) {
 	dirs := env(t)
 	home := os.Getenv("HOME")
 	hostDir := t.TempDir() // the validator host; not scanned
@@ -116,14 +123,33 @@ func TestDeployImportDoesNotLeak(t *testing.T) {
 		t.Fatal("not connected")
 	}
 
-	seed := &stellarcfg.Seed{Mode: stellarcfg.SeedImport, PublicKey: importAddress, Alias: "canary-a"}
-	rendered := []byte("# rendered by auriga\nNETWORK_PASSPHRASE = \"Test SDF Network ; September 2015\"\nNODE_SEED = \"" + seed.SeedMarker() + "\"\n")
-	paste := secret.FromBytes([]byte(importSeed))
+	seed := &stellarcfg.Seed{Mode: mode, PublicKey: importAddress, Alias: "canary-a"}
+	if mode == stellarcfg.SeedGenerate {
+		seed.PublicKey = ""
+	}
+	render := func(s *stellarcfg.Seed) []byte {
+		return []byte("# rendered by auriga\nNETWORK_PASSPHRASE = \"Test SDF Network ; September 2015\"\nNODE_SEED = \"" + s.SeedMarker() + "\"\n")
+	}
+	rendered := render(seed)
 	target := deploy.Target{Alias: "canary-a", ConfigPath: cfgPath, Service: "stellar-core", Rendered: rendered,
-		Seed: seed, Import: paste, Running: true, HTTPPort: 11626}
+		Seed: seed, Running: true, HTTPPort: 11626}
+	var paste *secret.Buffer
+	if mode == stellarcfg.SeedImport {
+		paste = secret.FromBytes([]byte(importSeed))
+		target.Import = paste
+	}
 	var events bytes.Buffer
 	opt := deploy.Options{Org: "canary", Network: "testnet", SyncTimeout: 50 * time.Millisecond, PollEvery: 10 * time.Millisecond,
 		MinWorkDirKB: 1, MinConfigFSKB: 1}
+	// A generated key comes back as its public key only; the re-plan puts
+	// it in the render's seed, as the wizard does.
+	opt.Replan = func(generated map[string]string) ([]deploy.Target, error) {
+		re := target
+		s := *seed
+		s.PublicKey = generated[target.Alias]
+		re.Seed, re.Rendered = &s, render(&s)
+		return []deploy.Target{re}, nil
+	}
 	c := deploy.New(b.DeployOps(), b.AuditLog(), []deploy.Target{target}, opt, func(e deploy.Event) {
 		fmt.Fprintf(&events, "%s %s %d %s\n", e.Host, e.Step, e.Status, e.Detail)
 	})
@@ -136,7 +162,8 @@ func TestDeployImportDoesNotLeak(t *testing.T) {
 		t.Fatalf("outcome %s\n%s", o, events.String())
 	}
 
-	// The seed reached the host over stdin and is in its config there.
+	// The seed reached the host (over stdin, or generated there) and is in
+	// its config there.
 	installed, _ := os.ReadFile(cfgPath)
 	if !bytes.Contains(installed, []byte(`NODE_SEED = "`+importSeed+` canary-a"`)) {
 		t.Fatalf("seed not installed on the host:\n%s\n%s", installed, events.String())
@@ -144,7 +171,7 @@ func TestDeployImportDoesNotLeak(t *testing.T) {
 	if argv, _ := os.ReadFile(filepath.Join(hostDir, "argv.log")); bytes.Contains(argv, []byte(importSeed)) {
 		t.Error("seed appeared in an argv on the host")
 	}
-	if paste.Len() != 0 {
+	if paste != nil && paste.Len() != 0 {
 		t.Error("pasted seed not zeroed after staging")
 	}
 	entries, _, _ := b.AuditLog().Read()
