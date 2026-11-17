@@ -116,6 +116,18 @@ The maintainer accepted the proposed defaults for all six questions.
 | The Soroban inspector compares settings by `configSettingID` wherever they appear in either document, field by field. | `sorobaninfo?format=detailed` (recorded from core 30) lists `ConfigSettingsEntries`; a real `dumpproposedsettings` answer could not be recorded without a published proposal, so the comparison does not depend on its wrapper. |
 | The integration suite upgrades the stack's network from protocol 0 to 30 (with two of three validators armed it applied within seconds). | It exercises `protocolversion` on real hosts and turns on Soroban, so `sorobaninfo` and `dumpproposedsettings` can be called. |
 
+## M7 decisions (17 Nov 2026)
+
+| Decision | Reason |
+| -------- | ------ |
+| With `NO_COLOR`, the finished frame goes through `theme.StripColour`, which removes colour parameters from every SGR sequence and keeps bold, faint, reverse and underline. huh forms show the focused button in reverse video. | A check added to every app test (each frame fills 80×24 exactly and sets no colour under NO_COLOR) found huh's text inputs, cursor and buttons colouring the wizard and upgrades forms. huh's theme cannot reach the blurred text-input styles, so the frame is cleaned in one place. |
+| The fallback helper refuses an admin query whose decoded value holds `&`, `?` or `#`. | `FuzzRawCommand` found that decoding for `http-command` turned `configupgradesetkey=x%26mode%3Dclear` into an extra `mode=clear` parameter. Arming already rejects such a key (it is not base64), so this was not reachable from the UI, but the helper layer now refuses it on its own. |
+| The recommended sudoers rule is `ALL=(root) NOPASSWD: /bin/sh -s --*, /usr/bin/sh -s --*`, and the integration hosts that need no password use exactly that. | Helpers are scripts fed to `sh -s` on stdin, so sudo cannot narrow them further. The rule is documented as a root shell, and the suite proves Auriga needs nothing beyond it. |
+| Release builds are reproducible (`-trimpath`, commit timestamps, no build date). The SBOMs are not byte-identical between runs. | Two snapshot builds of the same commit gave identical archives and binaries. syft writes a creation time and a unique document namespace into each SPDX file. |
+| Release tools are pinned to releases at least two weeks old (GoReleaser v2.19.0, syft v1.55.0, cosign v3.1.4) and built in the job with `go install`, not installed by their actions. The release job runs only after lint, tests, fuzzing and the integration suite pass on the tag, and creates a draft. | The repository allows only GitHub-owned actions (and golangci-lint's), and the first push of the job with third-party actions failed to start. `go install` verifies the sources against the Go checksum database. A maintainer reads the draft before anyone can download it. |
+| The demo GIF is recorded with VHS against the Docker integration stack (`docs/demo/`), with the hosts renamed `acme-a`, `acme-b` and `acme-c` in a throwaway `~/.ssh/config`. | It shows real stellar-core 30 nodes without pointing anything at testnet or pubnet. |
+| A connected node whose fresh `info` reports `Synced!` is labelled "synced" in the host detail header, even when its health is degraded or down. The symbol, colour and status line still show the health. This departs from the plain ok/degraded/down words in SPEC.md's UX section, at the maintainer's request. | A synced node with too few peers read "○ down", which suggests the node is not running. The word now says what the node is doing, and the problem stays visible as the red symbol and the line naming it. Stale info, a failed last poll or a lost connection still show the health word. |
+
 ## Verifications
 
 | Item | Milestone | Result |

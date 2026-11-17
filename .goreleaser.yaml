@@ -1,0 +1,81 @@
+# GoReleaser config (SPEC.md "Releases"): Linux and macOS for amd64 and
+# arm64, reproducible builds, SHA-256 checksums, an SBOM per archive and a
+# Sigstore keyless signature over the checksums.
+#
+# Check locally with:
+#   goreleaser check
+#   goreleaser release --snapshot --clean --skip=sign
+version: 2
+
+project_name: auriga
+
+before:
+  hooks:
+    - go mod verify
+
+builds:
+  - id: auriga
+    main: ./cmd/auriga
+    binary: auriga
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    # Reproducible: file times come from the commit, not the build machine.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: auriga
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - SECURITY.md
+    builds_info:
+      mtime: "{{ .CommitDate }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.spdx.json"
+
+signs:
+  # Keyless: cosign signs with the workflow's GitHub OIDC identity and
+  # writes a Sigstore bundle next to checksums.txt. Verify with:
+  #   cosign verify-blob --bundle checksums.txt.sigstore.json \
+  #     --certificate-identity-regexp '^https://github.com/owenjacob-dev/auriga/' \
+  #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  #     checksums.txt
+  - id: cosign
+    cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - --bundle=${signature}
+      - --yes
+      - ${artifact}
+    artifacts: checksum
+
+changelog:
+  # Release notes come from CHANGELOG.md (--release-notes in the workflow).
+  disable: true
+
+release:
+  github:
+    owner: owenjacob-dev
+    name: auriga
+  # A tag-suffixed version (v0.1.0-rc.1) is marked as a pre-release.
+  prerelease: auto
+  # The release is created as a draft; a maintainer reads it and publishes.
+  draft: true

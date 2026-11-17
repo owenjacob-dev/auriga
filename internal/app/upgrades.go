@@ -58,7 +58,7 @@ func (m Model) auditCmd(e audit.Entry) tea.Cmd {
 func (m Model) handleUpgrades(msg tea.Msg) (Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case ui.OpenUpgradesMsg:
-		return m, m.Push(upgradesview.New(msg.Org, m.opts.Now, nil)), true
+		return m, m.Push(upgradesview.New(msg.Org, m.opts.Now, nil).WithNoColor(m.opts.NoColor)), true
 
 	case upgradesview.FetchMsg:
 		var cmds []tea.Cmd

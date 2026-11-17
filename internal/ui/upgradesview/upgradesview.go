@@ -47,11 +47,13 @@ type fetched struct {
 
 // Model is the screen.
 type Model struct {
-	org   string
-	fleet *ui.Fleet
-	now   func() time.Time
-	loc   *time.Location
-	phase phase
+	// noColor drops colour from forms (NO_COLOR).
+	noColor bool
+	org     string
+	fleet   *ui.Fleet
+	now     func() time.Time
+	loc     *time.Location
+	phase   phase
 
 	sched map[string]fetched
 
@@ -79,6 +81,9 @@ type Model struct {
 
 // New opens the screen for org (all hosts when ""). now is the clock and
 // loc the operator's time zone for the local time shown beside UTC.
+// WithNoColor drops every colour from the screen's forms (NO_COLOR).
+func (m *Model) WithNoColor(on bool) *Model { m.noColor = on; return m }
+
 func New(org string, now func() time.Time, loc *time.Location) *Model {
 	if loc == nil {
 		loc = time.Local
@@ -211,7 +216,7 @@ func (m *Model) lost() []*ui.HostView {
 }
 
 func (m *Model) newForm(groups ...*huh.Group) {
-	m.form = huh.NewForm(groups...).WithShowHelp(true).WithShowErrors(true).WithTheme(huh.ThemeFunc(huh.ThemeBase))
+	m.form = huh.NewForm(groups...).WithShowHelp(true).WithShowErrors(true).WithTheme(theme.Form(m.noColor))
 	if m.cols > 0 {
 		m.form = m.form.WithWidth(m.cols)
 	}

@@ -1,5 +1,5 @@
 ┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
-│ ● ok  acme-a  [Info] Quorum  Peers  Upgrades  Config  Probe                  │
+│ ● synced  acme-a  [Info] Quorum  Peers  Upgrades  Config  Probe              │
 │                                                                              │
 │ State     Synced!   Ledger    61234567 (age 3s)                              │
 │ Peers     12 auth, 2 pending   Quorum    fail_at 3, intersection yes         │

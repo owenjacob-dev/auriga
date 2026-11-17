@@ -371,8 +371,18 @@ func (m Model) View() (v tea.View) {
 }
 
 // Render draws the current frame as a string. It is View without the
-// tea.View wrapper, for tests.
+// tea.View wrapper, for tests. With NO_COLOR every colour is stripped from
+// the finished frame, including colours set by components Auriga does not
+// style (SPEC.md "Display rules").
 func (m Model) Render() string {
+	out := m.render()
+	if m.opts.NoColor {
+		out = theme.StripColour(out)
+	}
+	return out
+}
+
+func (m Model) render() string {
 	w, h := m.width, m.height
 	if w == 0 || h == 0 {
 		return ""

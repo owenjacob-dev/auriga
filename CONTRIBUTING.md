@@ -35,6 +35,7 @@ discussion first.
 | `make test-secrets` | The secrets-leak suite. Run it before every commit. |
 | `make itest` | Docker Compose integration suite on a private network passphrase |
 | `make vuln` | `govulncheck ./...` |
+| `make fuzz` | Every fuzz target for `FUZZTIME` each (default 10s) |
 
 UI snapshots and other golden files are updated only on purpose, never to make
 a failing test pass:
@@ -77,9 +78,42 @@ admins.
 - Never render `PUBLIC_HTTP_PORT=true`, and never add a way to skip host-key
   checking.
 
+## Fuzzing
+
+Parsers that read input from a host, a file or a paste have fuzz targets
+(`func Fuzz…`). CI runs each for 10 seconds on every pull request. Run one for
+longer when you change it:
+
+```sh
+go test -run '^$' -fuzz '^FuzzParse$' -fuzztime 5m ./internal/upgrades
+```
+
+A failing input is saved under the package's `testdata/fuzz/`. Commit it with
+the fix, so it stays a regression case.
+
 ## Adding a quorum preset
 
-Presets live in `internal/presets` (from milestone M4). Each preset records
-its source URL and snapshot date. Update one by replacing the embedded file
-with the new upstream snapshot, updating the date, and including the upstream
-diff in the pull request description.
+Presets live in `internal/presets/data`, one TOML file per network. Each
+records its `source` URL and `snapshot` date. To update one:
+
+1. Replace the file with the new upstream snapshot and update the date.
+2. Run `go test ./internal/presets ./internal/ui/wizard`.
+3. Put the upstream diff in the pull request description.
+
+## Releasing
+
+Releases are cut by an admin from `main`:
+
+1. Move the `[Unreleased]` entries in `CHANGELOG.md` under a new
+   `## [X.Y.Z] - YYYY-MM-DD` heading, and merge that.
+2. Run the manual acceptance in [`docs/acceptance.md`](docs/acceptance.md) on
+   three testnet VMs with a build of that commit. Attach the results table to
+   the changelog pull request.
+3. Tag and push: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
+4. The CI release job runs only after lint, tests, fuzzing and the
+   integration suite pass on the tag. It creates a draft GitHub release with
+   the archives, checksums, SBOMs and Sigstore bundle. Check the draft, then
+   publish it.
+
+Versions stay `v0.x` until the acceptance checklist has passed on pubnet
+hosts.

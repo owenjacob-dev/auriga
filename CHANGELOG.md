@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Release builds for Linux and macOS (amd64 and arm64), reproducible, with
+  SHA-256 checksums, an SPDX SBOM per archive and a Sigstore keyless
+  signature, published as a draft only after the full test suite passes on
+  the tag.
+- Fuzz targets for the helper argument allowlists, the admin JSON decoders,
+  dashboard health evaluation, seed redaction, the arming-string parser and
+  the inventory loader, run in CI on every pull request (`make fuzz`).
+- The secrets-leak suite also covers seeds generated on the host during a
+  deploy.
+- Docs: a reference for every helper script Auriga runs on a host, a threat
+  model, the manual acceptance runbook, a quick start with the recommended
+  sudoers rule, and a demo GIF.
 - Network upgrades (`u`): an overview of each host's protocol, base fee,
   reserve and armed vote; arming from a form or a pasted SDF arming string,
   checked against what each host supports and reviewed per host (typed

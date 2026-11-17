@@ -8,8 +8,9 @@ GOBIN     := $(shell $(GO) env GOPATH)/bin
 GOLANGCI  ?= $(GOBIN)/golangci-lint
 GOVULN    ?= $(GOBIN)/govulncheck
 COMPOSE   ?= docker compose -f test/integration/compose.yaml
+FUZZTIME  ?= 10s
 
-.PHONY: all build lint test test-secrets itest vuln cover clean
+.PHONY: all build lint test test-secrets itest vuln fuzz cover clean
 
 all: lint test build
 
@@ -38,6 +39,17 @@ itest:
 
 vuln:
 	$(GOVULN) ./...
+
+# Runs every fuzz target for FUZZTIME each (go test fuzzes one at a time).
+# A failing input is saved under the package's testdata/fuzz; commit it as a
+# regression case with the fix.
+fuzz:
+	@set -e; for pkg in $$($(GO) list ./...); do \
+		for f in $$($(GO) test -list '^Fuzz' $$pkg | grep '^Fuzz' || true); do \
+			echo "== $$pkg $$f"; \
+			$(GO) test -run '^$$' -fuzz "^$$f$$" -fuzztime $(FUZZTIME) $$pkg; \
+		done; \
+	done
 
 cover:
 	$(GO) test -race -coverprofile=coverage.out ./...

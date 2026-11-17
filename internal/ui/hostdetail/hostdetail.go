@@ -256,7 +256,7 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 		}
 	}
 	head := []string{
-		t.Style(st).Render(st.Symbol()+" "+st.Word()) + "  " + t.Header.Render(h.Alias) + "  " + strings.Join(tabs, ""),
+		t.Style(st).Render(st.Symbol()+" "+dashboard.Label(h, r, st)) + "  " + t.Header.Render(h.Alias) + "  " + strings.Join(tabs, ""),
 		"",
 	}
 

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Configures the test host from environment variables, then runs sshd.
-#   SUDO_MODE=nopasswd|password   sudo for user op (password: op-sudo-pw)
+#   SUDO_MODE=nopasswd|password   sudo for user op: the narrow NOPASSWD rule,
+#                                 or ALL with password op-sudo-pw
 #   NODE_SEED_VALUE, NODE_ALIAS   this validator's seed and alias
 #   QUORUM_VALIDATORS             "NAME:PUBKEY ..." for [[VALIDATORS]] (own entry skipped)
 #   PEERS                         "host:port host:port ..." for KNOWN_PEERS
@@ -13,7 +14,11 @@ install -d -m 700 -o op -g op /home/op/.ssh
 install -m 600 -o op -g op /keys/authorized_keys /home/op/.ssh/authorized_keys
 
 case "${SUDO_MODE:-nopasswd}" in
-nopasswd) echo 'op ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/op ;;
+nopasswd)
+	# The rule docs/remote-helpers.md and the README recommend: sh as root
+	# only, so the suite proves Auriga needs nothing more.
+	echo 'op ALL=(root) NOPASSWD: /bin/sh -s --*, /usr/bin/sh -s --*' >/etc/sudoers.d/op
+	;;
 password)
 	echo 'op:op-sudo-pw' | chpasswd
 	echo 'op ALL=(ALL) ALL' >/etc/sudoers.d/op

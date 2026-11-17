@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -209,7 +210,32 @@ func step(t *testing.T, m Model, msg tea.Msg) Model {
 	t.Helper()
 	tm, cmd := m.Update(msg)
 	m = tm.(Model)
-	return run(t, m, cmd)
+	m = run(t, m, cmd)
+	checkFrame(t, m)
+	return m
+}
+
+// checkFrame holds every frame the app tests reach to the display rules
+// (SPEC.md acceptance: every screen works at 80×24 and with NO_COLOR): the
+// frame fills the terminal exactly, and with NoColor it sets no colour.
+func checkFrame(t *testing.T, m Model) {
+	t.Helper()
+	if m.width < MinWidth || m.height < MinHeight {
+		return
+	}
+	out := m.Render()
+	lines := strings.Split(out, "\n")
+	if len(lines) != m.height {
+		t.Fatalf("frame is %d lines, want %d:\n%s", len(lines), m.height, out)
+	}
+	for i, l := range lines {
+		if w := lipgloss.Width(l); w != m.width {
+			t.Fatalf("frame line %d is %d wide, want %d:\n%s", i, w, m.width, out)
+		}
+	}
+	if m.opts.NoColor && colourSGR.MatchString(out) {
+		t.Fatalf("NO_COLOR frame sets a colour: %q", colourSGR.FindString(out))
+	}
 }
 
 // cmdWait is how long run waits for a command before treating it as a
