@@ -6,7 +6,7 @@ organisation's three validators, from one screen.
 
 ![Auriga: adding three hosts, the live dashboard, a host's quorum and the upgrades screen](docs/demo.gif)
 
-> **Status:** v0.x. The features below work and are tested against
+> **Status:** v0.x, not yet released. The features below work and are tested against
 > stellar-core 30 in a Docker suite. Run the
 > [acceptance checklist](docs/acceptance.md) on testnet before trusting it
 > with a pubnet validator.

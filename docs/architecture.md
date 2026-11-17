@@ -130,8 +130,11 @@ its path.
 
 `internal/ui/theme` builds styles for a dark or light background, using the
 answer to Bubble Tea v2's background-colour query (dark until it answers).
-With `NO_COLOR` set, no style carries a colour. Status is always a symbol and
-a word (● ok, ◐ degraded, ○ down) as well as a colour.
+With `NO_COLOR` set, no style carries a colour, and the finished frame goes
+through `theme.StripColour`, which removes colours that components such as
+huh's inputs set themselves. Every app test checks that each frame fills the
+terminal exactly and, under NO_COLOR, sets no colour. Status is always a
+symbol and a word (● ok, ◐ degraded, ○ down) as well as a colour.
 
 ## Local files
 
