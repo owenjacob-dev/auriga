@@ -192,6 +192,9 @@ func (m Model) handleUpgrades(msg tea.Msg) (Model, tea.Cmd, bool) {
 			return r
 		}, true
 
+	case upgradesview.FetchedMsg:
+		return m, m.toTop(msg), true
+
 	case armCheckMsg:
 		hv, rec := m.fleet.Host(msg.alias), m.arms[msg.alias]
 		if hv == nil || rec == nil || msg.err != nil || len(msg.scheduled) > 0 {
@@ -263,8 +266,9 @@ func (m *Model) trackArm(alias string, i *corehttp.Info) tea.Cmd {
 		if ih := m.inv.Host(alias); ih != nil {
 			org = ih.Org
 		}
-		return m.auditCmd(audit.Entry{Host: alias, Org: org, Network: rec.network, Action: "upgrade.applied",
-			Detail: fmt.Sprintf("%s; ledger %d at protocol %d", rec.params.String(), i.Ledger.Num, i.Ledger.Version), Result: audit.OK})
+		return tea.Batch(m.auditCmd(audit.Entry{Host: alias, Org: org, Network: rec.network, Action: "upgrade.applied",
+			Detail: fmt.Sprintf("%s; ledger %d at protocol %d", rec.params.String(), i.Ledger.Num, i.Ledger.Version), Result: audit.OK}),
+			ui.Emit(upgradesview.FetchMsg{Aliases: []string{alias}})) // the overview shows mode=get again
 	}
 	c := m.adminFor(alias)
 	if c == nil {

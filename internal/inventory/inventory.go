@@ -123,7 +123,7 @@ func (inv *Inventory) Validate() error {
 		}
 		orgs[o.Name] = true
 		switch o.Network {
-		case "", NetworkTestnet, NetworkPubnet:
+		case "", NetworkTestnet, NetworkPubnet, NetworkPrivate:
 		default:
 			return fmt.Errorf("org %s: network %q must be testnet or pubnet", o.Name, o.Network)
 		}

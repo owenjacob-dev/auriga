@@ -195,13 +195,19 @@ func TestArmBasefeeConfirmApplyAndRearm(t *testing.T) {
 
 	// The vote passes on acme-a and acme-b: the ledger shows the new fee,
 	// the overview shows it, and the change is in the audit log.
+	m = keys(t, m, "esc")
+	if out := screen(m); strings.Count(out, "▲ upgradetime=2026-11-") != 3 {
+		t.Fatalf("armed hosts not shown:\n%s", out)
+	}
 	b.cores["acme-a"].apply()
 	b.cores["acme-b"].apply()
-	m = keys(t, m, "esc")
 	m = poll(t, m)
 	out = screen(m)
 	if !strings.Contains(out, "  200") || !strings.Contains(out, "the network upgrade applied") {
 		t.Errorf("new base fee not shown:\n%s", out)
+	}
+	if strings.Count(out, "not armed") != 2 {
+		t.Errorf("applied hosts still shown as armed:\n%s", out)
 	}
 	if got := auditActions(b); strings.Count(strings.Join(got, ","), "upgrade.applied ok") != 2 {
 		t.Errorf("applied not recorded: %v", got)
