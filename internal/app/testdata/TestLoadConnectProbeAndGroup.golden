@@ -21,4 +21,4 @@
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · poll failed: admin info: HTTP 404: unknown command · ssh connected… │
-└ a add  s setup  ⏎ detail  r refresh  p pause  ? help  q quit ────────────────┘
+└ a add  s setup  ⏎ detail  r refresh  l log  ? help  q quit ──────────────────┘

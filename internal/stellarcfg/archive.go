@@ -73,6 +73,9 @@ func (a ArchiveSpec) Validate() error {
 			return fmt.Errorf("endpoint %q must be a plain https URL", a.Endpoint)
 		}
 	case BackendCustom:
+		if a.URL != "" && !safeURL.MatchString(a.URL) {
+			return fmt.Errorf("archive URL %q must be a plain http(s) URL", a.URL)
+		}
 		if a.Get == "" {
 			return fmt.Errorf("a get command is required")
 		}
@@ -123,13 +126,14 @@ func (a ArchiveSpec) GetTemplate() string {
 }
 
 // PutTarget identifies where the archive is written, so two hosts never
-// publish to the same place (SPEC.md: one archive per node).
+// publish to the same place (SPEC.md: one archive per node). It is "" when
+// that cannot be told: custom commands without a URL, whose text alone does
+// not say which machine they write to (cp to a local directory is the same
+// text on every host).
 func (a ArchiveSpec) PutTarget() string {
 	switch a.Backend {
 	case BackendS3:
 		return "s3://" + path.Join(a.Bucket, a.Prefix) + "@" + a.Endpoint
-	case BackendCustom:
-		return a.Put
 	}
 	return strings.TrimRight(a.URL, "/")
 }
@@ -155,4 +159,44 @@ func (a ArchiveSpec) Binaries(publish bool) []string {
 // WellKnownURL is where an existing archive answers.
 func (a ArchiveSpec) WellKnownURL() string {
 	return strings.TrimRight(a.URL, "/") + "/.well-known/stellar-history.json"
+}
+
+var (
+	curlGet  = regexp.MustCompile(`^curl -sf (https?://\S+?)/?\{0\} -o \{1\}$`)
+	nginxPut = regexp.MustCompile(`^cp \{0\} (/\S+?)/\{1\}$`)
+	s3Put    = regexp.MustCompile(`^aws s3 cp \{0\} s3://([^/\s]+)/?(\S*?)/\{1\}(?: --endpoint-url (\S+))?$`)
+)
+
+// ArchiveFromHistory turns an archive a node already publishes back into a
+// spec: the guided backend that renders exactly the same table when there
+// is one, otherwise the custom backend with the commands as they are. The
+// URL is taken from a curl get command when it has one.
+func ArchiveFromHistory(h HistoryArchive) ArchiveSpec {
+	custom := ArchiveSpec{Name: h.Name, Backend: BackendCustom, Get: h.Get, Put: h.Put, Mkdir: h.Mkdir}
+	if m := curlGet.FindStringSubmatch(h.Get); m != nil {
+		custom.URL = strings.TrimRight(m[1], "/")
+	}
+	var guided ArchiveSpec
+	switch {
+	case custom.URL == "":
+		return custom
+	case nginxPut.MatchString(h.Put):
+		guided = ArchiveSpec{Name: h.Name, Backend: BackendNginx, URL: custom.URL, Dir: nginxPut.FindStringSubmatch(h.Put)[1]}
+	case s3Put.MatchString(h.Put):
+		m := s3Put.FindStringSubmatch(h.Put)
+		guided = ArchiveSpec{Name: h.Name, Backend: BackendS3, URL: custom.URL, Bucket: m[1], Prefix: m[2], Endpoint: m[3]}
+	default:
+		return custom
+	}
+	if got, err := guided.History(true); err == nil && got == h {
+		return guided
+	}
+	return custom
+}
+
+// Same reports whether the spec publishes to the same place as h, so an
+// archive the node already has is not initialised again.
+func (a ArchiveSpec) Same(h HistoryArchive) bool {
+	got, err := a.History(true)
+	return err == nil && got.Name == h.Name && got.Put == h.Put
 }

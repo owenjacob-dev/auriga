@@ -76,9 +76,8 @@ fi
 unset NODE_SEED_VALUE
 
 if [ -e "$cfg" ]; then
-	touch /var/log/stellar-core.log && chown stellar:stellar /var/log/stellar-core.log
 	# Like the packaged systemd unit: no WorkingDirectory, so run from /.
-	su -s /bin/sh stellar -c "cd / && exec stellar-core --conf $cfg run" >>/var/log/stellar-core.log 2>&1 &
+	systemctl start stellar-core
 fi
 
 ssh-keygen -A >/dev/null

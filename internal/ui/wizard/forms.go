@@ -83,11 +83,15 @@ func (m *Model) buildForm() *huh.Form {
 		))
 
 	case StepNetwork:
+		nets := []huh.Option[string]{
+			huh.NewOption("Testnet (reset periodically by SDF)", "testnet"),
+			huh.NewOption("Pubnet (mainnet)", "pubnet"),
+		}
+		if _, ok := Passphrases[NetworkPrivate]; ok {
+			nets = append(nets, huh.NewOption("Private test network (test flag; no preset)", NetworkPrivate))
+		}
 		groups = append(groups, huh.NewGroup(
-			huh.NewSelect[string]().Title("Network").Options(
-				huh.NewOption("Testnet (reset periodically by SDF)", "testnet"),
-				huh.NewOption("Pubnet (mainnet)", "pubnet"),
-			).Value(&d.Network),
+			huh.NewSelect[string]().Title("Network").Options(nets...).Value(&d.Network),
 		))
 		if changing := m.hostsChangingNetwork(); len(changing) > 0 {
 			var opts []huh.Option[string]
@@ -186,8 +190,21 @@ func (m *Model) buildForm() *huh.Form {
 			Description("Paste [[HOME_DOMAINS]] and [[VALIDATORS]] entries.").Value(&d.Quorum.Manual).Lines(4))
 		groups = append(groups, huh.NewGroup(fields...))
 		if m.needsConsent() {
-			consent := []huh.Field{huh.NewConfirm().Title("Accept a quorum set that tolerates no failures?").
-				Description("stellar-core starts only with UNSAFE_QUORUM=true. If any one entity fails, this node stops closing ledgers.").
+			rules := m.consentRules()
+			title := "Accept a quorum set stellar-core calls unsafe?"
+			var why []string
+			if rules["zero-tolerance"] {
+				title = "Accept a quorum set that tolerates no failures?"
+				why = append(why, "If any one entity fails, this node stops closing ledgers.")
+			}
+			if rules["archives-blocking"] {
+				if !rules["zero-tolerance"] {
+					title = "Accept a quorum set that can form without archives?"
+				}
+				why = append(why, "A quorum can form without any validator that publishes a history archive, so nodes that fall behind may not catch up.")
+			}
+			consent := []huh.Field{huh.NewConfirm().Title(title).
+				Description("stellar-core starts only with UNSAFE_QUORUM=true. " + strings.Join(why, " ")).
 				Value(&d.Quorum.UnsafeConsent)}
 			if d.Network == "pubnet" {
 				consent = append(consent, huh.NewInput().Title("Type pubnet to confirm").Value(&m.fs.pubnet).Validate(func(s string) error {
@@ -197,7 +214,7 @@ func (m *Model) buildForm() *huh.Form {
 					return nil
 				}))
 			}
-			groups = append(groups, huh.NewGroup(consent...).Title("Zero fault tolerance"))
+			groups = append(groups, huh.NewGroup(consent...).Title("Quorum safety"))
 		}
 
 	case StepHistory:
@@ -237,10 +254,11 @@ func (m *Model) buildForm() *huh.Form {
 					huh.NewInput().Title("Directory nginx serves").Description("Absolute path on the host, e.g. /var/www/history.").Value(&af.dir),
 				).Title(h+": local directory").WithHideFunc(is(stellarcfg.BackendNginx)),
 				huh.NewGroup(
+					huh.NewInput().Title("Public URL (optional)").Description("Used to check whether the archive exists.").Value(&af.url),
 					huh.NewInput().Title("get").Description("Must contain {0} and {1}.").Value(&af.get),
 					huh.NewInput().Title("put").Value(&af.put),
 					huh.NewInput().Title("mkdir").Value(&af.mkdir),
-				).Title(h+": custom").WithHideFunc(is(stellarcfg.BackendCustom)),
+				).Title(h+": custom commands").WithHideFunc(is(stellarcfg.BackendCustom)),
 			)
 		}
 

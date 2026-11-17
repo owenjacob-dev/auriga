@@ -1,8 +1,28 @@
 #!/bin/sh
-# systemctl stand-in for containers without systemd: the stellar-core
-# "unit" is active while a stellar-core run process exists. It mirrors the
-# unit from stellar/packages (no WorkingDirectory).
-running() { pgrep -x stellar-core >/dev/null 2>&1; }
+# systemctl stand-in for containers without systemd. The stellar-core
+# "unit" is active while the stellar user runs `stellar-core --conf … run`
+# (matched without an anchor: under emulation qemu prefixes the command);
+# start runs it as the stellar user from / with the packaged unit's
+# command line (no WorkingDirectory).
+cfg=/etc/stellar/stellar-core.cfg
+pid() { pgrep -u stellar -f "stellar-core --conf $cfg run\$" | head -n 1; }
+running() { [ -n "$(pid)" ]; }
+start() {
+	running && return 0
+	touch /var/log/stellar-core.log && chown stellar:stellar /var/log/stellar-core.log
+	setsid su -s /bin/sh stellar -c "cd / && exec stellar-core --conf $cfg run" \
+		</dev/null >>/var/log/stellar-core.log 2>&1 &
+	return 0
+}
+stop() {
+	p=$(pid)
+	[ -n "$p" ] || return 0
+	kill "$p" 2>/dev/null
+	i=0
+	while running && [ $i -lt 100 ]; do sleep 0.2; i=$((i + 1)); done
+	if running; then kill -9 "$(pid)" 2>/dev/null; sleep 0.5; fi
+	return 0
+}
 case "$1" in
 is-active)
 	if running; then echo active; else echo inactive; exit 3; fi ;;
@@ -12,5 +32,8 @@ show)
 	LoadState) echo loaded ;;
 	WorkingDirectory) echo ;; # the packaged unit sets none: systemd runs it from /
 	esac ;;
+start) start ;;
+stop) stop ;;
+restart) stop; start ;;
 *) echo "systemctl stand-in: $1 not supported" >&2; exit 1 ;;
 esac

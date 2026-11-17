@@ -8,6 +8,22 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Deploys (`D` on the wizard's review): per host, preflight, stage with the
+  seed substituted on the host (kept, generated there, or pasted and sent
+  over stdin), verify the staged file against the review, back up, install
+  atomically, one-off `new-db`/`new-hist`, restart, a 60 s health gate that
+  restores the backup automatically, the sync gate and a quorum check. Hosts
+  deploy one at a time; all at once on testnet or for new nodes. Typed
+  confirmation on pubnet and for init steps on existing nodes.
+- Manual rollback (`R` on the Config tab): compare a backup with the running
+  config, then restore it through the same steps and gates.
+- Audit log (`l` on the dashboard): every step that changed a host, newest
+  first, filterable by host or action, in `~/.local/state/auriga/audit.log`.
+- The quorum checks now also follow stellar-core's rule that validators with
+  an archive must be in every quorum, with the same consent for
+  `UNSAFE_QUORUM`.
+- The wizard's history step starts from the archive an adopted node already
+  publishes to, and never initialises that archive again.
 - Setup wizard (`s`): eight steps (scope, network, node type, keys, quorum,
   history archive, advanced, review) that configure an org's hosts at once.
   New drafts start from what adopted hosts already run, and every step saves

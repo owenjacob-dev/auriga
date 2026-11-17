@@ -17,6 +17,7 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/app"
 	"github.com/owenjacob-dev/auriga/internal/secret"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
+	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
 	"github.com/owenjacob-dev/auriga/internal/xdg"
 )
 
@@ -27,7 +28,13 @@ type flags struct {
 	configDir string
 	debug     bool
 	version   bool
+	// testNetwork is the passphrase of a private network the wizard may
+	// target. Test-only: it is left out of the usage text.
+	testNetwork string
 }
+
+// hiddenFlags are not listed in the usage text.
+var hiddenFlags = map[string]bool{"test-network-passphrase": true}
 
 func parseFlags(args []string, stderr io.Writer) (flags, error) {
 	var f flags
@@ -36,9 +43,17 @@ func parseFlags(args []string, stderr io.Writer) (flags, error) {
 	fs.StringVar(&f.configDir, "config", "", "config `directory` (default $XDG_CONFIG_HOME/auriga or ~/.config/auriga)")
 	fs.BoolVar(&f.debug, "debug", false, "write a redacted debug log to the state directory")
 	fs.BoolVar(&f.version, "version", false, "print the version and exit")
+	fs.StringVar(&f.testNetwork, "test-network-passphrase", "", "test only: offer a private network with this passphrase")
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage: auriga [flags]\n\nConfigure, deploy and monitor Stellar validators over SSH.\n\nFlags:\n")
-		fs.PrintDefaults()
+		visible := flag.NewFlagSet("auriga", flag.ContinueOnError)
+		fs.VisitAll(func(fl *flag.Flag) {
+			if !hiddenFlags[fl.Name] {
+				visible.Var(fl.Value, fl.Name, fl.Usage)
+			}
+		})
+		visible.SetOutput(fs.Output())
+		visible.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
 		return f, err
@@ -70,6 +85,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, versionString())
 		return 0
 	}
+	wizard.EnableTestNetwork(f.testNetwork)
 
 	dirs, err := xdg.Resolve(os.Getenv, f.configDir)
 	if err != nil {
@@ -89,7 +105,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		log.Info("auriga starting", "version", version)
 	}
 
-	backend := app.NewLiveBackend(sshx.DefaultEnv(), os.Getenv("SSH_AUTH_SOCK"), dirs.Config, log)
+	backend := app.NewLiveBackend(sshx.DefaultEnv(), os.Getenv("SSH_AUTH_SOCK"), dirs, log)
 	crash := app.NewCrash(nil)
 	model := app.New(app.Options{
 		Version: version,

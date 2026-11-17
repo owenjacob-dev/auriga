@@ -97,6 +97,17 @@ func Check(cfg *stellarcfg.Config, self Self, opt CheckOptions) []Issue {
 			add(sev, "zero-tolerance", "",
 				"tolerates no failures (%d of %d at the top); stellar-core needs UNSAFE_QUORUM=true", set.Threshold, set.Size())
 		}
+		// stellar-core's verifyHistoryValidatorsBlocking: the validators that
+		// publish an archive must be v-blocking, so no quorum can form
+		// without one of them (the node itself is not counted).
+		if !set.VBlocking(func(n Node) bool { return !n.Self && n.History != "" }) {
+			sev := NeedsConsent
+			if cfg.UnsafeQuorum != nil && *cfg.UnsafeQuorum {
+				sev = Warn
+			}
+			add(sev, "archives-blocking", "",
+				"can reach quorum without any validator that has a HISTORY archive; stellar-core needs UNSAFE_QUORUM=true")
+		}
 	}
 
 	if opt.Running != nil {

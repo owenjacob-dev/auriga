@@ -9,5 +9,9 @@ show)
 	WorkingDirectory) echo "${SHIM_WORKDIR:-}" ;;
 	esac
 	;;
+restart | stop | start)
+	printf '%s\n' "systemctl $*" >>"${SHIM_LOG:-/dev/null}"
+	[ -z "$SHIM_RESTART_FAIL" ] || [ "$1" = stop ]
+	;;
 *) exit 1 ;;
 esac

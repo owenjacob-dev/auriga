@@ -45,6 +45,17 @@ var Passphrases = map[string]string{
 	inventory.NetworkPubnet:  "Public Global Stellar Network ; September 2015",
 }
 
+// NetworkPrivate is the test-only network the integration suite runs on.
+const NetworkPrivate = "private"
+
+// EnableTestNetwork offers a private network with passphrase in the
+// wizard. Only the hidden test flag calls it; it has no preset.
+func EnableTestNetwork(passphrase string) {
+	if passphrase != "" {
+		Passphrases[NetworkPrivate] = passphrase
+	}
+}
+
 // HostFacts is what Auriga knows about a host before planning.
 type HostFacts struct {
 	// Existing is the host's adoptable config, nil for a new node, and
@@ -228,10 +239,15 @@ func BuildPlan(in Input) *Plan {
 				add(StepHistory, h, "archive", quorum.Block, "%v", err)
 				continue
 			}
-			if other, dup := targets[a.PutTarget()]; dup {
+			if a.Backend == stellarcfg.BackendCustom && !strings.Contains(a.Get, "://") && len(d.Hosts) > 1 {
+				add(StepHistory, h, "archive-local-get", quorum.Warn,
+					"get command reads a local path; siblings list it as given and would read their own disk instead")
+			}
+			t := a.PutTarget()
+			if other, dup := targets[t]; dup && t != "" {
 				add(StepHistory, h, "shared-archive", quorum.Block, "publishes to the same place as %s; every node needs its own archive", other)
 			}
-			targets[a.PutTarget()] = h
+			targets[t] = h
 		}
 	}
 
@@ -271,6 +287,10 @@ func BuildPlan(in Input) *Plan {
 	}
 	return p
 }
+
+// ConsentRule reports whether a quorum rule is one stellar-core accepts
+// only with UNSAFE_QUORUM=true, which the operator can consent to.
+func ConsentRule(rule string) bool { return rule == "zero-tolerance" || rule == "archives-blocking" }
 
 // ParseQuorumEntries reads pasted [[HOME_DOMAINS]] and [[VALIDATORS]]
 // entries; anything else is refused. Empty text gives nothing.
@@ -447,7 +467,13 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 			c.History = slices.DeleteFunc(append([]stellarcfg.HistoryArchive(nil), c.History...),
 				func(x stellarcfg.HistoryArchive) bool { return x.Name == hist.Name })
 			c.History = append(c.History, hist)
-			if f.ArchiveExists != "yes" {
+			already := false
+			if f.Existing != nil {
+				for _, x := range f.Existing.History {
+					already = already || a.Same(x)
+				}
+			}
+			if f.ArchiveExists != "yes" && !already {
 				hp.Actions = append(hp.Actions, Action{Kind: "new-hist", Archive: a.Name,
 					Reason: "initialises the archive; running it on an existing archive erases it"})
 			}
@@ -465,7 +491,7 @@ func planHost(in Input, h, passphrase string, keys map[string]string, homeDomain
 	}
 	c.UnsafeQuorum = nil
 	for _, qi := range quorum.Check(&c, self, quorum.CheckOptions{Running: running}) {
-		if qi.Rule == "zero-tolerance" && d.Quorum.UnsafeConsent {
+		if ConsentRule(qi.Rule) && d.Quorum.UnsafeConsent {
 			c.UnsafeQuorum = stellarcfg.Ptr(true)
 			qi.Severity = quorum.Warn
 		}

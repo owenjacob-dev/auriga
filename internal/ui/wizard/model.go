@@ -114,6 +114,7 @@ var (
 	kRefresh = key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "refresh preset"))
 	kHost    = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next host"))
 	kDiff    = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "diff"))
+	kDeploy  = key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "deploy"))
 	kYes     = key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "save"))
 	kNo      = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "discard"))
 )
@@ -122,6 +123,9 @@ var (
 func (m *Model) Keys() []key.Binding {
 	switch m.phase {
 	case phaseReview:
+		if m.plan != nil && len(m.plan.Hosts) > 0 && !m.plan.Blocking(m.draft.Quorum.UnsafeConsent) {
+			return []key.Binding{kDeploy, kHost, kDiff, kBack}
+		}
 		return []key.Binding{kHost, kDiff, kBack}
 	case phaseRefresh:
 		return []key.Binding{kYes, kNo}
@@ -135,13 +139,32 @@ func (m *Model) Keys() []key.Binding {
 }
 
 // prefill starts a new draft from what the hosts already run: home
-// domain, network and node type of the first adopted host.
+// domain, network and node type of the first adopted host, and each
+// host's own archive.
 func (m *Model) prefill() {
-	for _, f := range m.facts() {
-		c := f.Existing
+	first := true
+	facts := m.facts()
+	for _, h := range m.draft.Hosts {
+		c := facts[h].Existing
 		if c == nil {
 			continue
 		}
+		var own *stellarcfg.HistoryArchive
+		for i, a := range c.History {
+			if a.Put != "" && own == nil {
+				own = &c.History[i]
+			}
+		}
+		if own != nil {
+			if m.draft.Archives == nil {
+				m.draft.Archives = map[string]stellarcfg.ArchiveSpec{}
+			}
+			m.draft.Archives[h] = stellarcfg.ArchiveFromHistory(*own)
+		}
+		if !first {
+			continue
+		}
+		first = false
 		if m.draft.HomeDomain == "" {
 			m.draft.HomeDomain = c.NodeHomeDomain
 		}
@@ -150,21 +173,16 @@ func (m *Model) prefill() {
 				m.draft.Network = net
 			}
 		}
-		publishes := false
-		for _, h := range c.History {
-			publishes = publishes || h.Put != ""
-		}
 		switch validator := c.NodeIsValidator != nil && *c.NodeIsValidator; {
-		case validator && publishes:
+		case validator && own != nil:
 			m.draft.NodeType = TypeFull
 		case validator:
 			m.draft.NodeType = TypeBasic
-		case publishes:
+		case own != nil:
 			m.draft.NodeType = TypeArchiver
 		default:
 			m.draft.NodeType = TypeWatcher
 		}
-		return
 	}
 }
 
@@ -220,14 +238,18 @@ func (m *Model) replan() {
 	}
 }
 
-func (m *Model) needsConsent() bool {
+func (m *Model) needsConsent() bool { return len(m.consentRules()) > 0 }
+
+// consentRules lists the rules that need UNSAFE_QUORUM in the current plan.
+func (m *Model) consentRules() map[string]bool {
 	m.replan()
+	out := map[string]bool{}
 	for _, i := range m.plan.Issues {
-		if i.Rule == "zero-tolerance" {
-			return true
+		if ConsentRule(i.Rule) {
+			out[i.Rule] = true
 		}
 	}
-	return false
+	return out
 }
 
 // hostsChangingNetwork lists adopted hosts whose config is on another
@@ -293,8 +315,8 @@ func (m *Model) stepDone() tea.Cmd {
 		// on; results for unchanged specs are reused.
 		for _, h := range m.draft.Hosts {
 			a, ok := m.draft.Archives[h]
-			if !ok || a.Validate() != nil {
-				continue
+			if !ok || a.Validate() != nil || a.URL == "" {
+				continue // nothing to check against (a custom archive without a URL)
 			}
 			if c, done := m.archives[h]; done && c.spec == a {
 				continue
@@ -355,7 +377,9 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 			return m, nil
 		}
 	case PresetMsg:
-		if msg.Err != nil {
+		if msg.Err != nil && m.draft.Network == NetworkPrivate {
+			m.preset, m.draft.Quorum.UsePreset = nil, false // no preset for the test network
+		} else if msg.Err != nil {
 			m.flash = "Preset not loaded: " + msg.Err.Error()
 		} else {
 			m.preset = msg.Preset
@@ -497,6 +521,8 @@ func (m *Model) reviewKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "d":
 		m.reviewDiff = !m.reviewDiff
 		m.scroll = 0
+	case "D":
+		return m.deploy()
 	case "down", "j":
 		m.scroll++
 	case "up", "k":
@@ -507,6 +533,31 @@ func (m *Model) reviewKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.scroll = max(0, m.scroll-10)
 	}
 	return nil
+}
+
+// deploy hands the reviewed plan to the deploy screen. Nothing on a host
+// has changed until the operator confirms there.
+func (m *Model) deploy() tea.Cmd {
+	m.replan()
+	if m.plan == nil || len(m.plan.Hosts) == 0 || m.plan.Blocking(m.draft.Quorum.UnsafeConsent) {
+		return nil
+	}
+	seeds := map[string]*secret.Buffer{}
+	for h, b := range m.seeds {
+		if m.draft.Keys[h].Mode == KeyImport && b.Len() > 0 {
+			seeds[h] = secret.FromBytes(append([]byte(nil), b.Bytes()...))
+		}
+	}
+	in := Input{Draft: m.draft.Clone(), Facts: m.facts(), Render: stellarcfg.RenderOptions{Version: m.version, Time: m.now()}}
+	if m.draft.Quorum.UsePreset {
+		in.Preset = m.preset
+	}
+	replan := func(generated map[string]string) *Plan {
+		in := in
+		in.Generated = generated
+		return BuildPlan(in)
+	}
+	return ui.Emit(DeployMsg{Plan: replan(nil), Seeds: seeds, Replan: replan})
 }
 
 // View implements ui.Screen.
@@ -694,7 +745,7 @@ func (m *Model) reviewView(t theme.Theme, ctx ui.Context) []string {
 		}
 	} else {
 		out = append(out, t.OK.Render(fmt.Sprintf("● Ready: %d hosts on %s. Nothing has changed on any host.", len(p.Hosts), p.Network)))
-		out = append(out, t.Muted.Render("The deploy flow (stage, verify, back up, install, restart) arrives with the next milestone."))
+		out = append(out, t.Muted.Render("D opens the deploy: it lists every step and asks before changing anything."))
 	}
 	hp := p.Hosts[m.reviewHost%len(p.Hosts)]
 	var tabs []string

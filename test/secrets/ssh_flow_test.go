@@ -129,7 +129,7 @@ func TestSSHFlowDoesNotLeak(t *testing.T) {
 	log := slog.New(secret.NewLogHandler(logFile, slog.LevelDebug))
 
 	sshEnv := sshx.Env{Home: home, User: "op", ConfigPath: filepath.Join(home, ".ssh", "config")}
-	backend := app.NewLiveBackend(sshEnv, "", dirs.Config, log)
+	backend := app.NewLiveBackend(sshEnv, "", dirs, log)
 	m := app.New(app.Options{Version: "test", Backend: backend, NoColor: true, DisableClock: true})
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
 

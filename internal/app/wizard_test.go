@@ -12,6 +12,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/owenjacob-dev/auriga/internal/remote"
+	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
 	"github.com/owenjacob-dev/auriga/internal/ui/wizard"
 )
 
@@ -189,6 +190,8 @@ func TestWizardTestnetBasicEndToEnd(t *testing.T) {
 		t.Errorf("override not saved: %+v", d.Advanced)
 	}
 
+	m = deployFromReview(t, m, b, plan)
+
 	// Leaving the wizard wipes the seeds.
 	seeds := w.Seeds()
 	m = keys(t, m, "esc", "esc", "esc", "esc", "esc", "esc", "esc")
@@ -251,5 +254,28 @@ func TestWizardKeepsAdoptedAlias(t *testing.T) {
 	m = keys(t, m, "s", "enter", "enter", "enter", "enter", "enter")
 	if out := screen(m); !strings.Contains(out, "[4 Keys]") || !strings.Contains(out, "> acme-a") || !strings.Contains(out, "Keep the existing seed") {
 		t.Fatalf("alias not taken from NODE_SEED:\n%s", out)
+	}
+}
+
+// A Full validator's own archive is where the history step starts.
+func TestWizardStartsFromAdoptedArchive(t *testing.T) {
+	cmdWait = 15 * time.Millisecond
+	t.Cleanup(func() { cmdWait = 100 * time.Millisecond })
+	b := newFakeBackend(testInventory("host-1"))
+	b.facts["host-1"] = healthyFacts
+	text := append(cfgText("acme.example", "Test SDF Network ; September 2015"), []byte(`
+[HISTORY.acme-a]
+get="curl -sf https://history-a.acme.example/{0} -o {1}"
+put="cp {0} /var/www/history/{1}"
+mkdir="mkdir -p /var/www/history/{0}"
+`)...)
+	b.configs["host-1"] = remote.RedactedConfig{PublicKey: pubA, Seed: remote.SeedPresent, NodeAlias: "acme-a", Text: text}
+	m := startModel(t, b)
+	m = step(t, m, connected("host-1"))
+	m = keys(t, m, "s")
+	d := m.top().(*wizard.Model).Draft()
+	want := stellarcfg.ArchiveSpec{Name: "acme-a", Backend: stellarcfg.BackendNginx, URL: "https://history-a.acme.example", Dir: "/var/www/history"}
+	if d.NodeType != wizard.TypeFull || d.Archives["host-1"] != want {
+		t.Fatalf("type %s archive %+v", d.NodeType, d.Archives["host-1"])
 	}
 }

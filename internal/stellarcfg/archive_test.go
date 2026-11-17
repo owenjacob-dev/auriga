@@ -75,3 +75,38 @@ func TestArchiveRejectsShellInjection(t *testing.T) {
 		t.Error("message")
 	}
 }
+
+func TestArchiveFromHistory(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		spec ArchiveSpec
+	}{
+		{"nginx", ArchiveSpec{Name: "acme-a", Backend: BackendNginx, URL: "https://history-a.acme.org", Dir: "/var/www/history"}},
+		{"s3", ArchiveSpec{Name: "acme-b", Backend: BackendS3, URL: "https://history-b.acme.org", Bucket: "acme-history", Prefix: "b"}},
+		{"r2", ArchiveSpec{Name: "acme-c", Backend: BackendS3, URL: "https://h.acme.org/c", Bucket: "acme-history", Prefix: "nodes/c", Endpoint: "https://x.r2.cloudflarestorage.com"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, err := tc.spec.History(true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := ArchiveFromHistory(h); got != tc.spec || !got.Same(h) {
+				t.Errorf("got %+v, want %+v", got, tc.spec)
+			}
+		})
+	}
+	// Hand-written tables stay as they are, as custom commands.
+	local := HistoryArchive{Name: "local", Get: "cp /var/lib/stellar/history/{0} {1}", Put: "cp {0} /var/lib/stellar/history/{1}", Mkdir: "mkdir -p /var/lib/stellar/history/{0}"}
+	got := ArchiveFromHistory(local)
+	if got.Backend != BackendCustom || got.URL != "" || got.Get != local.Get || got.Put != local.Put || got.Mkdir != local.Mkdir || !got.Same(local) {
+		t.Errorf("local: %+v", got)
+	}
+	// A curl get with a put the guided backends would write differently.
+	odd := HistoryArchive{Name: "odd", Get: "curl -sf https://h.example/{0} -o {1}", Put: "cp {0} /srv/h/{1} && sync", Mkdir: "mkdir -p /srv/h/{0}"}
+	if got := ArchiveFromHistory(odd); got.Backend != BackendCustom || got.URL != "https://h.example" || !got.Same(odd) {
+		t.Errorf("odd: %+v", got)
+	}
+	if (ArchiveSpec{Name: "local", Backend: BackendNginx, URL: "https://h.example", Dir: "/elsewhere"}).Same(local) {
+		t.Error("a different put counted as the same archive")
+	}
+}

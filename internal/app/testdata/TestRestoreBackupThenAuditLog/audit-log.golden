@@ -1,0 +1,24 @@
+┌ auriga · audit log ──────────────────────────────────────────── 14:02:11 UTC ┐
+│ TIME (UTC)           HOST        ACTION           RESULT  DETAIL             │
+│ 2026-11-16 12:00:03  acme-a      restore.restart  ● ok                       │
+│ 2026-11-16 12:00:02  acme-a      restore.install  ● ok    bak 20261116T1200… │
+│ 2026-11-16 12:00:01  acme-a      restore.backup   ● ok    bak 20261116T1200… │
+│ 2026-11-16 12:00:00  acme-a      restore.stage    ● ok    bak 20261101T0900… │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 4 entries · /state/auriga/audit.log                                          │
+└ / filter  r reload  ↑↓ scroll  esc back  ? help  q quit ─────────────────────┘

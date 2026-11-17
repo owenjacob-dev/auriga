@@ -34,3 +34,16 @@ func TestHelpFlagIsNotAnError(t *testing.T) {
 		t.Errorf("usage missing --config: %q", errOut.String())
 	}
 }
+
+func TestTestNetworkFlagIsHidden(t *testing.T) {
+	var out bytes.Buffer
+	f, err := parseFlags([]string{"-test-network-passphrase", "Auriga Integration Network ; November 2026"}, &out)
+	if err != nil || f.testNetwork != "Auriga Integration Network ; November 2026" {
+		t.Fatalf("%+v %v", f, err)
+	}
+	out.Reset()
+	parseFlags([]string{"-h"}, &out)
+	if strings.Contains(out.String(), "test-network") || !strings.Contains(out.String(), "-debug") {
+		t.Errorf("usage:\n%s", out.String())
+	}
+}

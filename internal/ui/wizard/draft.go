@@ -158,3 +158,16 @@ func LoadDraft(configDir, org string) (*Draft, bool, error) {
 	}
 	return d, true, nil
 }
+
+// Clone returns a deep copy of the draft.
+func (d *Draft) Clone() *Draft {
+	var b bytes.Buffer
+	c := NewDraft()
+	if err := toml.NewEncoder(&b).Encode(d); err != nil {
+		panic("wizard: draft does not encode: " + err.Error())
+	}
+	if err := toml.NewDecoder(&b).Decode(c); err != nil {
+		panic("wizard: draft does not decode: " + err.Error())
+	}
+	return c
+}

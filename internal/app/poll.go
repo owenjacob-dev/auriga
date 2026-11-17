@@ -114,7 +114,7 @@ func (m Model) handlePoll(msg tea.Msg) (Model, tea.Cmd, bool) {
 		if hv == nil {
 			return m, nil, true
 		}
-		if m.fleet.Paused || hv.Conn.State != sshx.StateConnected {
+		if m.fleet.Paused || hv.Deploying || hv.Conn.State != sshx.StateConnected {
 			return m, m.schedule(msg.alias, msg.gen, 0), true
 		}
 		return m, m.fetchInfo(msg.alias, msg.gen), true

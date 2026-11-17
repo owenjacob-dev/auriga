@@ -22,6 +22,14 @@ version)
 	echo "stellar-core 30.0.0 (shim)"
 	echo "ledger protocol version: 30"
 	;;
+gen-seed)
+	if [ -n "$SHIM_GEN_FAIL" ]; then echo "gen-seed failed" >&2; exit 1; fi
+	echo "Secret seed: SAAACAQDAQCQMBYIBEFAWDANBYHRAEISCMKBKFQXDAMRUGY4DUPB6NKI"
+	echo "Public: GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q"
+	;;
+new-db | new-hist)
+	if [ -n "$SHIM_INIT_FAIL" ]; then echo "$1 failed" >&2; exit 1; fi
+	;;
 sec-to-pub)
 	IFS= read -r seed
 	case "$seed" in

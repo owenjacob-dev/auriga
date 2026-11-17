@@ -85,8 +85,8 @@ func TestMatchesStellarCore30(t *testing.T) {
 			}
 		})
 	}
-	if n != 11 {
-		t.Fatalf("read %d fixtures, want 11", n)
+	if n != 14 {
+		t.Fatalf("read %d fixtures, want 14", n)
 	}
 }
 

@@ -42,6 +42,10 @@ type HostView struct {
 	PollFailures   int    // consecutive failures
 	NotSyncedSince time.Time
 	Transport      string // "ssh tunnel" or "on host (curl)" …
+
+	// Deploying is set while a deploy runs on the host; dashboard polling
+	// pauses (the deploy checks the host itself).
+	Deploying bool
 }
 
 // Fleet is the ordered set of hosts in the inventory.
@@ -96,6 +100,10 @@ type (
 	CloseMsg struct{}
 	// TogglePauseMsg pauses or resumes polling.
 	TogglePauseMsg struct{}
+	// OpenRestoreMsg opens the manual rollback screen for a host.
+	OpenRestoreMsg struct{ Alias string }
+	// OpenAuditMsg opens the audit log.
+	OpenAuditMsg struct{}
 	// OpenWizardMsg opens the setup wizard for an org (Org "" for a new
 	// one), preselecting Hosts.
 	OpenWizardMsg struct {
