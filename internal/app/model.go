@@ -79,6 +79,7 @@ type Model struct {
 	pollGen   map[string]int // alias -> current poll cycle
 	pending   *pendingDeploy // reviewed, waiting for confirmation
 	run       *deployRun     // running
+	arms      map[string]*armRecord
 	// themeFixed is set when settings.toml chooses dark or light, so the
 	// terminal's background answer is ignored.
 	themeFixed bool
@@ -108,6 +109,7 @@ func New(opts Options) Model {
 		secretIn: components.NewSecretInput(),
 		probing:  map[string]int{},
 		pollGen:  map[string]int{},
+		arms:     map[string]*armRecord{},
 	}
 	m.theme = newTheme(m.dark, opts.NoColor)
 	if fa, ok := root.(ui.FleetAware); ok {
@@ -240,6 +242,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 	}
 	if next, cmd, handled := m.handlePoll(msg); handled {
+		return next, cmd
+	}
+	if next, cmd, handled := m.handleUpgrades(msg); handled {
 		return next, cmd
 	}
 	if next, cmd, handled := m.handleDeploy(msg); handled {

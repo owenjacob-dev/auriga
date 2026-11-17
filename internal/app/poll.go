@@ -144,7 +144,7 @@ func (m Model) handlePoll(msg tea.Msg) (Model, tea.Cmd, bool) {
 		case prevState == health.SyncedState || hv.NotSyncedSince.IsZero():
 			hv.NotSyncedSince = msg.at
 		}
-		return m, m.schedule(msg.alias, msg.gen, 0), true
+		return m, tea.Batch(m.schedule(msg.alias, msg.gen, 0), m.trackArm(msg.alias, msg.info)), true
 
 	case ui.FetchMsg:
 		return m, m.fetchView(msg), true

@@ -1,0 +1,24 @@
+┌ auriga · upgrades · org acme.example ────────────────────────── 14:02:11 UTC ┐
+│ Proposal AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA… │
+│ on acme-a                                                                    │
+│                                                                              │
+│ 1 value(s) would change:                                                     │
+│                                                                              │
+│ CONTRACT_MAX_SIZE_BYTES                                                      │
+│   contractMaxSizeBytes: 2000 → 65536                                         │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ dumpproposedsettings compared with sorobaninfo?format=detailed; read-only.   │
+└ ↑↓ scroll  esc done  ? help  q quit ─────────────────────────────────────────┘

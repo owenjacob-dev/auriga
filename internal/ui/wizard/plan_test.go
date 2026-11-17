@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/owenjacob-dev/auriga/internal/inventory"
 	"github.com/owenjacob-dev/auriga/internal/presets"
 	"github.com/owenjacob-dev/auriga/internal/quorum"
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
@@ -430,7 +431,10 @@ func TestPrivateTestNetwork(t *testing.T) {
 		t.Fatal("private network accepted without the test flag")
 	}
 	EnableTestNetwork(pass)
-	t.Cleanup(func() { delete(Passphrases, NetworkPrivate) })
+	t.Cleanup(func() { delete(Passphrases, NetworkPrivate); inventory.SetTestNetwork("") })
+	if inventory.NetworkFromPassphrase(pass) != NetworkPrivate {
+		t.Error("the fleet does not know the test network")
+	}
 	p := BuildPlan(Input{Draft: d, Facts: f, Render: renderOpt})
 	if b := blocking(p); len(b) != 0 {
 		t.Fatalf("blocking: %v", b)

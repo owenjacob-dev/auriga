@@ -56,20 +56,21 @@ func visibleColumns(width int) []int {
 }
 
 type keys struct {
-	Up, Down, Open, Add, Refresh, Remove, Pause, Setup, Log key.Binding
+	Up, Down, Open, Add, Refresh, Remove, Pause, Setup, Log, Upgrades key.Binding
 }
 
 func newKeys() keys {
 	return keys{
-		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "Move up")),
-		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "Move down")),
-		Open:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("⏎", "detail")),
-		Add:     key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
-		Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
-		Remove:  key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "remove")),
-		Pause:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
-		Setup:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "setup")),
-		Log:     key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
+		Up:       key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "Move up")),
+		Down:     key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "Move down")),
+		Open:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("⏎", "detail")),
+		Add:      key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
+		Refresh:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
+		Remove:   key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "remove")),
+		Pause:    key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
+		Setup:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "setup")),
+		Log:      key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
+		Upgrades: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "upgrades")),
 	}
 }
 
@@ -100,7 +101,7 @@ func (m *Model) Keys() []key.Binding {
 		}
 	}
 	k := m.keys
-	return []key.Binding{k.Add, k.Setup, k.Open, k.Refresh, k.Log}
+	return []key.Binding{k.Add, k.Setup, k.Upgrades, k.Open, k.Refresh, k.Log}
 }
 
 // SetFleet implements ui.FleetAware.
@@ -140,6 +141,7 @@ func (m *Model) FullHelp() []key.Binding {
 		long(k.Setup, "s", "Setup wizard for the selected host's org"),
 		long(k.Refresh, "r", "Poll and probe now, or reconnect a disconnected host"),
 		long(k.Pause, "p", "Pause or resume polling"),
+		long(k.Upgrades, "u", "Network upgrade votes for the selected host's org"),
 		long(k.Log, "l", "Audit log of every change Auriga made to a host"),
 		long(k.Remove, "x", "Remove the host from the inventory (local only)"),
 	}
@@ -188,6 +190,12 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return m, ui.Emit(m.wizardFor())
 	case key.Matches(km, m.keys.Log):
 		return m, ui.Emit(ui.OpenAuditMsg{})
+	case key.Matches(km, m.keys.Upgrades):
+		org := ""
+		if i := m.index(); i >= 0 {
+			org = m.fleet.Hosts[i].Org
+		}
+		return m, ui.Emit(ui.OpenUpgradesMsg{Org: org})
 	case i < 0:
 		return m, nil
 	case key.Matches(km, m.keys.Up):

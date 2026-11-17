@@ -1,0 +1,24 @@
+┌ auriga · upgrades · org acme.example ────────────────────────── 14:02:11 UTC ┐
+│ Arm 3 host(s) on testnet                                                     │
+│ At 2026-11-16 17:00:00 UTC (2026-11-16 17:00 UTC local, in 2d 2h)            │
+│                                                                              │
+│ acme-a  v30.0.0, protocol 29/30                                              │
+│   upgrades?mode=set&upgradetime=2026-11-16T17:00:00Z&basefee=200             │
+│ acme-b  v30.0.0, protocol 29/30                                              │
+│   upgrades?mode=set&upgradetime=2026-11-16T17:00:00Z&basefee=200             │
+│ acme-c  v30.0.0, protocol 29/30                                              │
+│   upgrades?mode=set&upgradetime=2026-11-16T17:00:00Z&basefee=200             │
+│                                                                              │
+│ Press ⏎ to send.                                                             │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Arm · 3 of 3: review. Each host gets exactly this request.                   │
+└ ⏎ send  e edit  esc back  ? help  q quit ────────────────────────────────────┘

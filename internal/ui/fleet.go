@@ -11,6 +11,7 @@ import (
 	"github.com/owenjacob-dev/auriga/internal/remote"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
+	"github.com/owenjacob-dev/auriga/internal/upgrades"
 )
 
 // HostView is everything the UI knows about one host. The root model owns
@@ -46,6 +47,10 @@ type HostView struct {
 	// Deploying is set while a deploy runs on the host; dashboard polling
 	// pauses (the deploy checks the host itself).
 	Deploying bool
+
+	// ArmLost holds an upgrade vote armed in this session that the host
+	// no longer has after a restart, to offer re-arming it.
+	ArmLost *upgrades.Params
 }
 
 // Fleet is the ordered set of hosts in the inventory.
@@ -102,6 +107,8 @@ type (
 	TogglePauseMsg struct{}
 	// OpenRestoreMsg opens the manual rollback screen for a host.
 	OpenRestoreMsg struct{ Alias string }
+	// OpenUpgradesMsg opens the upgrades screen for an org ("" for all).
+	OpenUpgradesMsg struct{ Org string }
 	// OpenAuditMsg opens the audit log.
 	OpenAuditMsg struct{}
 	// OpenWizardMsg opens the setup wizard for an org (Org "" for a new
