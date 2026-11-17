@@ -325,6 +325,18 @@ func Health(h *ui.HostView, r health.Row) theme.Status {
 	return theme.StatusOK
 }
 
+// Label is the word shown with a host's status symbol. A connected node
+// whose fresh info says it is synced reads "synced", whatever else needs
+// attention; the symbol, colour and status line still carry the health.
+// Otherwise it is the health word.
+func Label(h *ui.HostView, r health.Row, st theme.Status) string {
+	if h.Conn.State == sshx.StateConnected && h.Info != nil && h.InfoErr == "" &&
+		r.State.Text == health.SyncedState && !r.State.Stale {
+		return "synced"
+	}
+	return st.Word()
+}
+
 // Dangers lists findings that put the node at risk; they turn the host red.
 func Dangers(h *ui.HostView) []string {
 	var d []string
