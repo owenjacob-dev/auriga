@@ -73,18 +73,18 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - uses: sigstore/cosign-installer@v4.1.2
-        with:
-          cosign-release: v3.1.4
-      - uses: anchore/sbom-action/download-syft@v0.24.3
-        with:
-          syft-version: v1.55.0
+      # Only GitHub-owned actions may run in this repository (docs/decisions.md
+      # "Repository settings"), so the release tools are built from source at
+      # pinned versions, verified against the Go checksum database.
+      - name: Install GoReleaser, syft and cosign
+        run: |
+          go install github.com/goreleaser/goreleaser/v2@v2.19.0
+          go install github.com/anchore/syft/cmd/syft@v1.55.0
+          go install github.com/sigstore/cosign/v3/cmd/cosign@v3.1.4
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Release notes from CHANGELOG.md
         run: .github/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
-      - uses: goreleaser/goreleaser-action@v7.3.0
-        with:
-          distribution: goreleaser
-          version: v2.19.0
-          args: release --clean --release-notes ${{ runner.temp }}/notes.md
+      - name: GoReleaser
+        run: goreleaser release --clean --release-notes "$RUNNER_TEMP/notes.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
