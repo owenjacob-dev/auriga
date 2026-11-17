@@ -108,13 +108,15 @@ func TestLiveInfoOnThreeHosts(t *testing.T) {
 }
 
 // TestAdminAllowlistOnHost checks that the fallback helper refuses anything
-// outside the six read-only commands before it reaches the host.
+// outside the six commands, or with characters outside the allowlist,
+// before it reaches the host. (upgrades?mode=set|clear are allowed since M6,
+// through the upgrades screen's confirmation.)
 func TestAdminAllowlistOnHost(t *testing.T) {
 	h := NewHome(t, true)
 	pool := sshx.NewPool(sshx.PoolConfig{Resolver: sshx.NewResolver(sshx.Env{Home: h.Dir, User: "op", ConfigPath: h.ConfigPath})})
 	t.Cleanup(pool.Close)
 	r := remote.NewRunner(pool, nil)
-	for _, cmd := range []string{"manualclose", "tx?blob=AAAA", "upgrades?mode=set&upgradetime=2026-01-01T00:00:00Z"} {
+	for _, cmd := range []string{"manualclose", "tx?blob=AAAA", "bans", "upgrades?mode=set&upgradetime=$(id)", "info?x='"} {
 		if _, err := r.AdminGet(context.Background(), "it-a", 11626, cmd, remote.DefaultConfigPath, remote.DefaultService); err == nil || !strings.Contains(err.Error(), "not allowed") {
 			t.Errorf("%s: %v", cmd, err)
 		}
