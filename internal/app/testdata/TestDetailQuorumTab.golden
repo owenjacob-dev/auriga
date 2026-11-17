@@ -1,5 +1,5 @@
 ┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
-│ ● ok  acme-a   Info [Quorum] Peers  Upgrades  Config  Probe                  │
+│ ● synced  acme-a   Info [Quorum] Peers  Upgrades  Config  Probe              │
 │                                                                              │
 │ Ledger        1234  phase EXTERNALIZE                                        │
 │ Agree         2                                                              │

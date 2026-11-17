@@ -1,5 +1,5 @@
 ┌ auriga · acme-a ─────────────────────────────────────────────── 14:02:11 UTC ┐
-│ ● ok  acme-a   Info  Quorum [Peers] Upgrades  Config  Probe                  │
+│ ● synced  acme-a   Info  Quorum [Peers] Upgrades  Config  Probe              │
 │                                                                              │
 │ DIR NODE                  ADDRESS               LATENCY  VERSION UP          │
 │ in  acme-b (GAB2…QZ6Q)    10.0.0.2:52110        12ms     30.0.0  60m         │
