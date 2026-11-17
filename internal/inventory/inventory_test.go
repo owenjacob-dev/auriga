@@ -146,3 +146,21 @@ func TestNetworkFromPassphrase(t *testing.T) {
 		t.Error("mapping wrong")
 	}
 }
+
+// The test network's name is saved like the others; the inventory loads
+// later without the flag.
+func TestPrivateNetworkSaves(t *testing.T) {
+	dir := t.TempDir()
+	inv := New()
+	inv.AddHost("it-a")
+	SetTestNetwork("Auriga Integration Network ; November 2026")
+	t.Cleanup(func() { SetTestNetwork("") })
+	inv.GroupByHomeDomain("it-a", "itest.example", NetworkFromPassphrase("Auriga Integration Network ; November 2026"))
+	if err := inv.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	SetTestNetwork("")
+	if _, err := Load(dir); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -1,0 +1,24 @@
+┌ auriga · upgrades · org acme.example ────────────────────────── 14:02:11 UTC ┐
+│ HOST       NET     BUILD    PROTO     FEE   RESERVE  ARMED                   │
+│ acme-a     testnet v30.0.0  29/30     100   5000000  not armed               │
+│ acme-b     testnet v30.0.0  29/30     100   5000000  not armed               │
+│ acme-c     testnet v30.0.0  29/30     100   5000000  not armed               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Values from info and upgrades?mode=get. Nothing is sent until you review it. │
+└ a arm  c clear  i inspect settings  r refresh  esc back  ? help  q quit ─────┘

@@ -46,13 +46,14 @@ var Passphrases = map[string]string{
 }
 
 // NetworkPrivate is the test-only network the integration suite runs on.
-const NetworkPrivate = "private"
+const NetworkPrivate = inventory.NetworkPrivate
 
 // EnableTestNetwork offers a private network with passphrase in the
 // wizard. Only the hidden test flag calls it; it has no preset.
 func EnableTestNetwork(passphrase string) {
 	if passphrase != "" {
 		Passphrases[NetworkPrivate] = passphrase
+		inventory.SetTestNetwork(passphrase)
 	}
 }
 

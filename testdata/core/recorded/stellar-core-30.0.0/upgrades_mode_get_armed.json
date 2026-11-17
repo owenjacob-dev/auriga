@@ -1,0 +1,33 @@
+{
+   "configupgradesetkey" : {
+      "nullopt" : true
+   },
+   "expirationminutes" : {
+      "data" : 30,
+      "nullopt" : false
+   },
+   "fee" : {
+      "data" : 300,
+      "nullopt" : false
+   },
+   "flags" : {
+      "nullopt" : true
+   },
+   "maxsorobantxsetsize" : {
+      "nullopt" : true
+   },
+   "maxtxsize" : {
+      "nullopt" : true
+   },
+   "nominationtimeoutlimit" : {
+      "nullopt" : true
+   },
+   "reserve" : {
+      "nullopt" : true
+   },
+   "time" : 1893456000,
+   "upgradeversion" : 1,
+   "version" : {
+      "nullopt" : true
+   }
+}

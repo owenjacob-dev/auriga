@@ -38,6 +38,8 @@ func keys(t *testing.T, m Model, ks ...string) Model {
 			msg = tea.KeyPressMsg{Code: tea.KeyTab}
 		case "esc":
 			msg = tea.KeyPressMsg{Code: tea.KeyEscape}
+		case "backspace":
+			msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 		default:
 			for _, r := range k {
 				m = step(t, m, tea.KeyPressMsg{Code: r, Text: string(r)})

@@ -689,3 +689,25 @@ func TestCheckArchive(t *testing.T) {
 		t.Error("unsafe URL accepted")
 	}
 }
+
+func TestRawCommand(t *testing.T) {
+	for in, want := range map[string]string{
+		"info": "info",
+		"upgrades?mode=set&upgradetime=2026-11-23T17%3A00%3A00Z&basefee=200":                          "upgrades?mode=set&upgradetime=2026-11-23T17:00:00Z&basefee=200",
+		"upgrades?configupgradesetkey=ab%2Bc%2Fd%3D%3D&mode=set&upgradetime=2026-01-01T00%3A00%3A00Z": "upgrades?configupgradesetkey=ab+c/d==&mode=set&upgradetime=2026-01-01T00:00:00Z",
+	} {
+		got, err := rawCommand(in)
+		if err != nil || got != want {
+			t.Errorf("%s: %q %v", in, got, err)
+		}
+		if (Arg{ArgAdminRaw, got}).Validate() != nil {
+			t.Errorf("%s: raw form not allowed", got)
+		}
+	}
+	for _, bad := range []string{"upgrades?mode=set&x=%3B%20id", "tx?blob=AAAA", "upgrades?mode=set&x=a'b"} {
+		raw, err := rawCommand(bad)
+		if err == nil && (Arg{ArgAdminRaw, raw}).Validate() == nil {
+			t.Errorf("%s: raw %q allowed", bad, raw)
+		}
+	}
+}

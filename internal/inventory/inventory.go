@@ -123,7 +123,7 @@ func (inv *Inventory) Validate() error {
 		}
 		orgs[o.Name] = true
 		switch o.Network {
-		case "", NetworkTestnet, NetworkPubnet:
+		case "", NetworkTestnet, NetworkPubnet, NetworkPrivate:
 		default:
 			return fmt.Errorf("org %s: network %q must be testnet or pubnet", o.Name, o.Network)
 		}
@@ -254,9 +254,21 @@ func (inv *Inventory) AssignOrg(alias, name string) error {
 	return nil
 }
 
-// NetworkFromPassphrase maps a NETWORK_PASSPHRASE to "testnet", "pubnet"
-// or "".
+// NetworkPrivate names the test-only network (the hidden
+// --test-network-passphrase flag).
+const NetworkPrivate = "private"
+
+var testPassphrase string
+
+// SetTestNetwork registers the test network's passphrase.
+func SetTestNetwork(passphrase string) { testPassphrase = passphrase }
+
+// NetworkFromPassphrase maps a NETWORK_PASSPHRASE to "testnet", "pubnet",
+// "private" for the registered test network, or "".
 func NetworkFromPassphrase(p string) string {
+	if p != "" && p == testPassphrase {
+		return NetworkPrivate
+	}
 	switch p {
 	case "Test SDF Network ; September 2015":
 		return NetworkTestnet

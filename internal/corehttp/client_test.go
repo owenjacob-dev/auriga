@@ -2,11 +2,13 @@ package corehttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -235,5 +237,71 @@ func TestAdaptiveKeepsOtherErrors(t *testing.T) {
 	a := NewAdaptive(&canned{err: io.EOF}, fb, sshx.IsForwardingRefused)
 	if _, _, err := a.Do(context.Background(), CmdInfo()); !errors.Is(err, io.EOF) || fb.calls != 0 {
 		t.Errorf("err %v, fallback calls %d", err, fb.calls)
+	}
+}
+
+// fixed answers every request with one body and records the command.
+type fixed struct {
+	body string
+	got  []string
+}
+
+func (f *fixed) Name() string { return "fixed" }
+func (f *fixed) Do(_ context.Context, cmd Command) (int, []byte, error) {
+	f.got = append(f.got, cmd.String())
+	return 200, []byte(f.body), nil
+}
+
+func TestArmAndClearUpgrades(t *testing.T) {
+	q := url.Values{"upgradetime": {"2026-11-23T17:00:00Z"}, "basefee": {"200"}}
+	tr := &fixed{}
+	if err := New(tr).ArmUpgrades(context.Background(), q); err != nil {
+		t.Fatal(err)
+	}
+	if tr.got[0] != "upgrades?basefee=200&mode=set&upgradetime=2026-11-23T17%3A00%3A00Z" {
+		t.Errorf("sent %s", tr.got[0])
+	}
+	// Failures arrive with HTTP 200 (recorded on stellar-core 30.0.0).
+	for body, want := range map[string]string{
+		`{"exception": "Protocol version error: supported is up to 30, passed is 99"}`: "HTTP 200: Protocol version error",
+		"could not parse upgradetime: 'bad'":                                           "HTTP 200: could not parse upgradetime",
+	} {
+		err := New(&fixed{body: body}).ArmUpgrades(context.Background(), q)
+		var ae *Error
+		if !errors.As(err, &ae) || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: %v", body, err)
+		}
+	}
+	for _, bad := range []url.Values{{"basefee": {"1"}}, {"upgradetime": {"x"}, "banpeer": {"y"}}, {"upgradetime": {"x", "y"}}} {
+		if err := New(&fixed{}).ArmUpgrades(context.Background(), bad); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+	tr = &fixed{}
+	if err := New(tr).ClearUpgrades(context.Background()); err != nil || tr.got[0] != "upgrades?mode=clear" {
+		t.Errorf("clear %v %v", tr.got, err)
+	}
+}
+
+func TestSorobanEndpoints(t *testing.T) {
+	rec, _ := os.ReadFile("../../testdata/core/recorded/stellar-core-30.0.0/sorobaninfo_format_detailed.json")
+	if b, err := New(&fixed{body: string(rec)}).SorobanInfo(context.Background()); err != nil || len(b) != len(rec) {
+		t.Errorf("sorobaninfo: %v", err)
+	}
+	for _, body := range []string{"Soroban is not active in current ledger version", "configUpgradeSet is missing or invalid", `{"exception": "dumpproposedsettings cannot be used before protocol v20"}`} {
+		if _, err := New(&fixed{body: body}).ProposedSettings(context.Background(), "AAAA"); err == nil {
+			t.Errorf("%q accepted", body)
+		}
+	}
+}
+
+func TestScheduledUnwrapsData(t *testing.T) {
+	rec, _ := os.ReadFile("../../testdata/core/recorded/stellar-core-30.0.0/upgrades_mode_get_armed.json")
+	var u UpgradesResponse
+	if err := json.Unmarshal(rec, &u); err != nil {
+		t.Fatal(err)
+	}
+	if s := u.Scheduled(); s["fee"] != "300" || s["expirationminutes"] != "30" || s["time"] != "1893456000" || len(s) != 3 {
+		t.Errorf("%v", s)
 	}
 }

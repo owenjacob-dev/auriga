@@ -1,0 +1,24 @@
+┌ auriga · upgrades · org acme.example ────────────────────────── 14:02:11 UTC ┐
+│ Arming 3 host(s)                                                             │
+│                                                                              │
+│ ● acme-a armed and confirmed                                                 │
+│     info: upgradetime=2026-11-16T17:00:00Z, basefee=200                      │
+│ ● acme-b armed and confirmed                                                 │
+│     info: upgradetime=2026-11-16T17:00:00Z, basefee=200                      │
+│ ● acme-c armed and confirmed                                                 │
+│     info: upgradetime=2026-11-16T17:00:00Z, basefee=200                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Every request is in the audit log.                                           │
+└ esc done  ? help  q quit ────────────────────────────────────────────────────┘

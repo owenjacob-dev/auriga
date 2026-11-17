@@ -7,13 +7,13 @@
 │   s             Setup wizard for the selected host's org                     │
 │   r             Poll and probe now, or reconnect a disconnected host         │
 │   p             Pause or resume polling                                      │
+│   u             Network upgrade votes for the selected host's org            │
 │   l             Audit log of every change Auriga made to a host              │
 │   x             Remove the host from the inventory (local only)              │
 │                                                                              │
 │   ?             Show or hide this help                                       │
 │   esc           Go back or close a dialog                                    │
 │   q, ctrl+c     Quit (asks first while work is running on a host)            │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

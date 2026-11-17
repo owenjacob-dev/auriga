@@ -56,6 +56,7 @@ type fakeBackend struct {
 	adminCalls     []string
 	ops            *scriptedOps
 	audit          *memAuditLog
+	cores          map[string]*fakeCore // stateful stellar-core nodes for the upgrades tests
 }
 
 func newFakeBackend(inv *inventory.Inventory) *fakeBackend {
@@ -181,6 +182,9 @@ func (a *fakeAdmin) Do(_ context.Context, cmd corehttp.Command) (int, []byte, er
 	a.f.adminCalls = append(a.f.adminCalls, a.alias+" "+cmd.String())
 	if err := a.f.adminErr[a.alias]; err != nil {
 		return 0, nil, err
+	}
+	if c := a.f.cores[a.alias]; c != nil {
+		return c.do(cmd)
 	}
 	body, ok := a.f.admin[a.alias][cmd.Name()]
 	if !ok {
