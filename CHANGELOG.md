@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Network upgrades (`u`): an overview of each host's protocol, base fee,
+  reserve and armed vote; arming from a form or a pasted SDF arming string,
+  checked against what each host supports and reviewed per host (typed
+  `pubnet` on pubnet), sent in parallel and confirmed with
+  `upgrades?mode=get`; clearing; and a read-only Soroban settings inspector
+  that shows only what a proposal would change. Votes armed in a session are
+  followed: applied votes go in the audit log, and a vote lost to a restart
+  can be re-armed with `R`.
 - Deploys (`D` on the wizard's review): per host, preflight, stage with the
   seed substituted on the host (kept, generated there, or pasted and sent
   over stdin), verify the staged file against the review, back up, install

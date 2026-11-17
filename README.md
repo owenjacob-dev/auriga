@@ -5,9 +5,9 @@ Stellar validators (stellar-core) over SSH, usually an organisation's three
 validators from one screen.
 
 > **Status:** early development, not yet released. SSH connections, live
-> monitoring, the setup wizard, deploys with automatic rollback, and the audit
-> log work; network upgrade votes and the first release are the remaining
-> milestones in [`SPEC.md`](SPEC.md).
+> monitoring, the setup wizard, deploys with automatic rollback, network
+> upgrade votes and the audit log work; hardening and the first release are
+> the remaining milestone in [`SPEC.md`](SPEC.md).
 
 ## What it will do (v1)
 

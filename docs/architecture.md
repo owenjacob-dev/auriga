@@ -93,6 +93,15 @@ host unchanged; from install on, the backup is restored. Every step that
 changes a host appends a redacted JSON line to the audit log. Manual rollback
 is the same run with a backup staged instead of a render.
 
+## Network upgrades (`internal/upgrades`)
+
+A pure package: the `upgrades?mode=set` parameters, the parser for SDF's
+arming strings, the query builder, the checks before sending, the read-back
+of `upgrades?mode=get`, and the Soroban settings comparison. The upgrades
+screen (`internal/ui/upgradesview`) asks the root model for every request;
+the root model sends them through each host's admin client, writes the
+audit entries, and follows armed votes on each `info` poll.
+
 ## Polling and health
 
 The root model polls each connected host's `info` on its own `tea.Tick`
