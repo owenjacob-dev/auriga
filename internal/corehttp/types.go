@@ -258,6 +258,13 @@ func (u UpgradesResponse) Scheduled() map[string]string {
 		if k == "upgradeversion" || (k == "time" && string(v) == "0") || string(v) == "null" {
 			continue
 		}
+		// A set value is {"data": X, "nullopt": false} (stellar-core 30).
+		var opt struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if len(v) > 0 && v[0] == '{' && json.Unmarshal(v, &opt) == nil && len(opt.Data) > 0 {
+			v = bytes.TrimSpace(opt.Data)
+		}
 		var buf bytes.Buffer
 		if json.Compact(&buf, v) == nil {
 			out[k] = buf.String()

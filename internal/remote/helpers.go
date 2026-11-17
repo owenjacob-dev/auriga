@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -175,13 +176,38 @@ type AdminResponse struct {
 // AdminGet requests cmd (e.g. "quorum?compact=false") from the admin
 // endpoint by running curl, or stellar-core http-command, on the host.
 func (r *Runner) AdminGet(ctx context.Context, alias string, port int, cmd, configPath, service string) (AdminResponse, error) {
+	raw, err := rawCommand(cmd)
+	if err != nil {
+		return AdminResponse{}, err
+	}
 	res, err := r.Run(ctx, alias, HelperAdminGet, []Arg{
-		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgPath, configPath}, {ArgName, service},
+		{ArgPort, strconv.Itoa(port)}, {ArgAdmin, cmd}, {ArgAdminRaw, raw}, {ArgPath, configPath}, {ArgName, service},
 	}, RunOptions{})
 	if err != nil {
 		return AdminResponse{}, err
 	}
 	return parseAdminGet(res.Stdout)
+}
+
+// rawCommand decodes cmd's query for `stellar-core http-command`, which
+// passes its argument to the admin handler without URL-decoding it
+// (checked on stellar-core 30.0.0: "could not parse upgradetime:
+// '…%3A…'").
+func rawCommand(cmd string) (string, error) {
+	name, query, ok := strings.Cut(cmd, "?")
+	if !ok {
+		return cmd, nil
+	}
+	parts := strings.Split(query, "&")
+	for i, p := range parts {
+		k, v, _ := strings.Cut(p, "=")
+		dv, err := url.QueryUnescape(v)
+		if err != nil {
+			return "", fmt.Errorf("admin command %q: %w", cmd, err)
+		}
+		parts[i] = k + "=" + dv
+	}
+	return name + "?" + strings.Join(parts, "&"), nil
 }
 
 func parseAdminGet(out []byte) (AdminResponse, error) {
