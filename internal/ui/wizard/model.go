@@ -31,6 +31,8 @@ const (
 
 // Model is the setup wizard screen.
 type Model struct {
+	// noColor drops colour from forms (NO_COLOR).
+	noColor bool
 	draft   *Draft
 	step    int
 	phase   phase
@@ -68,6 +70,9 @@ type Model struct {
 }
 
 // New opens the wizard for org (a new org when empty), preselecting hosts.
+// WithNoColor drops every colour from the wizard's forms (NO_COLOR).
+func (m *Model) WithNoColor(on bool) *Model { m.noColor = on; return m }
+
 func New(org string, hosts []string, version string, now func() time.Time) *Model {
 	d := NewDraft()
 	d.OrgName, d.Hosts = org, hosts

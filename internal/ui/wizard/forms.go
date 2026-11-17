@@ -10,6 +10,7 @@ import (
 	"charm.land/huh/v2"
 
 	"github.com/owenjacob-dev/auriga/internal/stellarcfg"
+	"github.com/owenjacob-dev/auriga/internal/ui/theme"
 )
 
 // formState holds the values a step's form edits. Huh binds to pointers,
@@ -311,7 +312,7 @@ func (m *Model) buildForm() *huh.Form {
 			)
 		}
 	}
-	form := huh.NewForm(groups...).WithShowHelp(true).WithShowErrors(true).WithTheme(huh.ThemeFunc(huh.ThemeBase))
+	form := huh.NewForm(groups...).WithShowHelp(true).WithShowErrors(true).WithTheme(theme.Form(m.noColor))
 	if m.cols > 0 {
 		form = form.WithWidth(m.cols)
 	}

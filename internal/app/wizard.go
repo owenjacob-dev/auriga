@@ -19,7 +19,7 @@ func (m Model) handleWizard(msg tea.Msg) (Model, tea.Cmd, bool) {
 		if org == "" && len(msg.Hosts) > 0 {
 			org = strings.SplitN(msg.Hosts[0], "-", 2)[0]
 		}
-		return m, m.Push(wizard.New(org, msg.Hosts, m.opts.Version, m.opts.Now)), true
+		return m, m.Push(wizard.New(org, msg.Hosts, m.opts.Version, m.opts.Now).WithNoColor(m.opts.NoColor)), true
 	case wizard.LoadMsg:
 		if b == nil {
 			return m, ui.Emit(wizard.LoadedMsg{}), true
