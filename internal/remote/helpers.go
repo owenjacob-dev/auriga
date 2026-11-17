@@ -205,6 +205,10 @@ func rawCommand(cmd string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("admin command %q: %w", cmd, err)
 		}
+		if strings.ContainsAny(dv, "&?#") {
+			// Decoded, it would split into other parameters.
+			return "", fmt.Errorf("admin command %q: %s holds a character that cannot be sent undecoded", cmd, k)
+		}
 		parts[i] = k + "=" + dv
 	}
 	return name + "?" + strings.Join(parts, "&"), nil
