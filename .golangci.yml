@@ -37,6 +37,7 @@ linters:
             - "**/internal/stellarcfg/**"
             - "**/internal/quorum/**"
             - "**/internal/presets/**"
+            - "**/internal/upgrades/**"
           deny:
             - pkg: github.com/owenjacob-dev/auriga/internal/sshx
               desc: pure packages must not do SSH
