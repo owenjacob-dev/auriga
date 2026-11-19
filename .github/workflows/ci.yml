@@ -76,7 +76,11 @@ jobs:
       # Only GitHub-owned actions may run in this repository (docs/decisions.md
       # "Repository settings"), so the release tools are built from source at
       # pinned versions, verified against the Go checksum database.
+      # GoReleaser and cosign need a newer Go than go.mod's, so only this step
+      # may fetch one; the release binaries are still built with go.mod's.
       - name: Install GoReleaser, syft and cosign
+        env:
+          GOTOOLCHAIN: auto
         run: |
           go install github.com/goreleaser/goreleaser/v2@v2.19.0
           go install github.com/anchore/syft/cmd/syft@v1.55.0

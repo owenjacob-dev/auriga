@@ -130,6 +130,7 @@ The maintainer accepted the proposed defaults for all six questions.
 | The first release is `v1.0.0`, not `v0.1.0`, and it is preceded by release candidates (`v1.0.0-rc.N`). The manual acceptance runs on the release candidate's signed archives, and adds an item (13) that checks the release workflow's output. SPEC.md's release and M7 lines are updated to match. | The maintainer's decision (19 Nov 2026). Running acceptance on the CI-built artefacts tests the release job, which never runs on pull requests, before the final tag. |
 | A release candidate takes its notes from its own CHANGELOG section if there is one, and otherwise from `[Unreleased]`. A final version still needs its own section, or the release job fails. | Lets candidates be cut without moving the changelog under the final version first. |
 | Release binaries are stamped `v{{ .Version }}`, so `auriga --version` prints the tag (`v1.0.0-rc.1`), as `make build` already did. | GoReleaser's `.Version` drops the `v`, so the two builds disagreed. |
+| The release job installs its tools with `GOTOOLCHAIN=auto`, and only in that step. | GoReleaser v2.19.0 needs Go 1.27.3 and cosign v3.1.4 needs Go 1.27, while setup-go pins the job to the repository's Go 1.26 with `GOTOOLCHAIN=local`. The first `v1.0.0-rc.1` release job failed for this reason. The fetched toolchain is checked against the Go checksum database, and the GoReleaser step still builds Auriga with the toolchain in `go.mod`. |
 
 ## Verifications
 
