@@ -67,9 +67,10 @@ signs:
       - ${artifact}
     artifacts: checksum
 
-changelog:
-  # Release notes come from CHANGELOG.md (--release-notes in the workflow).
-  disable: true
+# Release notes come from CHANGELOG.md, passed with --release-notes in the
+# workflow; given a notes file, GoReleaser does not build a changelog from git.
+# Do not set changelog.disable: it skips loading --release-notes as well, and
+# the release body comes out empty (as it did for v1.0.0-rc.2).
 
 release:
   github:
