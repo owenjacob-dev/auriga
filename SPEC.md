@@ -696,8 +696,8 @@ The project ships under Apache-2.0, the licence stellar-core itself uses, with t
 
 ### Releases
 
-- Semantic versioning, `v0.x` until the acceptance checklist has passed on pubnet hosts.
-- GoReleaser builds Linux and macOS for amd64 and arm64, with checksums, an SBOM and Sigstore keyless signatures. A Homebrew tap follows once v0.1 is out.
+- Semantic versioning. The first release is `v1.0.0`. Release candidates (`v1.0.0-rc.N`) are built by the release workflow and used for the manual acceptance run; the final version is tagged once the acceptance checklist has passed.
+- GoReleaser builds Linux and macOS for amd64 and arm64, with checksums, an SBOM and Sigstore keyless signatures. A Homebrew tap follows once v1.0 is out.
 
 Check SDF's brand guidelines before putting "Stellar" in the project name or logo; the name Auriga avoids it.
 
@@ -712,9 +712,9 @@ Build in eight milestones, each ending with its tests green, so read-only monito
 5. **M4 Wizard.** All eight steps, presets, quorum checks, archive backends, drafts. Done when fixture orgs (testnet Basic, pubnet Full) render the expected per-host configs.
 6. **M5 Deploy.** Stage, verify, backup, install, init, restart, gates, rolling order, rollback, audit log. Done when the integration suite passes, including the forced rollback.
 7. **M6 Upgrades.** Overview, arm form and paste parser, checks, clear, settings inspector. Done when the integration suite arms a `basefee` change and the dashboard shows the new value.
-8. **M7 Hardening and release.** Secrets-leak test, fuzzing, docs, demo GIF, GoReleaser, manual testnet acceptance. Done when `v0.1.0` is tagged.
+8. **M7 Hardening and release.** Secrets-leak test, fuzzing, docs, demo GIF, GoReleaser, manual testnet acceptance. Done when `v1.0.0` is tagged.
 
-### Acceptance checklist for v0.1.0
+### Acceptance checklist for v1.0.0
 
 - [ ] With three aliases in `~/.ssh/config` (one behind `ProxyJump`), the tool connects to all three at once with agent keys.
 - [ ] An unknown host key prompts with its fingerprint; a changed host key blocks and shows both fingerprints.

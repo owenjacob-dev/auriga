@@ -24,7 +24,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{ .Version }}
+      - -s -w -X main.version=v{{ .Version }}
     # Reproducible: file times come from the commit, not the build machine.
     mod_timestamp: "{{ .CommitTimestamp }}"
 
@@ -75,7 +75,7 @@ release:
   github:
     owner: owenjacob-dev
     name: auriga
-  # A tag-suffixed version (v0.1.0-rc.1) is marked as a pre-release.
+  # A tag-suffixed version (v1.0.0-rc.1) is marked as a pre-release.
   prerelease: auto
   # The release is created as a draft; a maintainer reads it and publishes.
   draft: true

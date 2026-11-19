@@ -102,18 +102,21 @@ records its `source` URL and `snapshot` date. To update one:
 
 ## Releasing
 
-Releases are cut by an admin from `main`:
+Releases are cut by an admin from `main`, release candidate first:
 
-1. Move the `[Unreleased]` entries in `CHANGELOG.md` under a new
-   `## [X.Y.Z] - YYYY-MM-DD` heading, and merge that.
-2. Run the manual acceptance in [`docs/acceptance.md`](docs/acceptance.md) on
-   three testnet VMs with a build of that commit. Attach the results table to
-   the changelog pull request.
-3. Tag and push: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
-4. The CI release job runs only after lint, tests, fuzzing and the
+1. Tag a release candidate on `main` and push it:
+   `git tag -a vX.Y.Z-rc.N -m vX.Y.Z-rc.N && git push origin vX.Y.Z-rc.N`.
+2. The CI release job runs only after lint, tests, fuzzing and the
    integration suite pass on the tag. It creates a draft GitHub release with
-   the archives, checksums, SBOMs and Sigstore bundle. Check the draft, then
-   publish it.
-
-Versions stay `v0.x` until the acceptance checklist has passed on pubnet
-hosts.
+   the archives, checksums, SBOMs and Sigstore bundle, marked as a
+   pre-release. A release candidate takes its notes from `[Unreleased]` in
+   `CHANGELOG.md`.
+3. Run the manual acceptance in [`docs/acceptance.md`](docs/acceptance.md) on
+   three testnet VMs with the release candidate's archives. Fix anything it
+   finds and cut `rc.N+1`.
+4. Move the `[Unreleased]` entries in `CHANGELOG.md` under a new
+   `## [X.Y.Z] - YYYY-MM-DD` heading, attach the filled-in results table to
+   that pull request, and merge it.
+5. Tag `vX.Y.Z` on the merge commit and push it. The release job creates the
+   draft release. Check it, then publish it. Delete the release candidates'
+   drafts, or publish them as pre-releases.
