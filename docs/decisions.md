@@ -131,6 +131,7 @@ The maintainer accepted the proposed defaults for all six questions.
 | A release candidate takes its notes from its own CHANGELOG section if there is one, and otherwise from `[Unreleased]`. A final version still needs its own section, or the release job fails. | Lets candidates be cut without moving the changelog under the final version first. |
 | Release binaries are stamped `v{{ .Version }}`, so `auriga --version` prints the tag (`v1.0.0-rc.1`), as `make build` already did. | GoReleaser's `.Version` drops the `v`, so the two builds disagreed. |
 | The release job installs its tools with `GOTOOLCHAIN=auto`, and only in that step. | GoReleaser v2.19.0 needs Go 1.27.3 and cosign v3.1.4 needs Go 1.27, while setup-go pins the job to the repository's Go 1.26 with `GOTOOLCHAIN=local`. The first `v1.0.0-rc.1` release job failed for this reason. The fetched toolchain is checked against the Go checksum database, and the GoReleaser step still builds Auriga with the toolchain in `go.mod`. |
+| `.goreleaser.yaml` does not set `changelog.disable`. Release notes come only from `--release-notes`. | With `disable: true`, GoReleaser v2.19.0 skips the whole changelog pipe, which is also the pipe that loads `--release-notes`, so `v1.0.0-rc.2`'s draft had an empty body. Given a notes file, the pipe uses it and returns before building a changelog from git (`internal/pipe/changelog/changelog.go`, checked with a local tagged release run). |
 
 ## Verifications
 
