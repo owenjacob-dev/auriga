@@ -1,10 +1,11 @@
 # Manual acceptance before a release
 
 SPEC.md requires a manual run before each release, on three cloud VMs on
-**testnet**. Run it with the release candidate binary
-(`make build VERSION=v0.1.0-rc.N`, or a snapshot from
-`goreleaser release --snapshot --clean --skip=sign`). Record the results at
-the bottom, and attach the filled-in table to the release pull request.
+**testnet**. Run it with the release candidate that CI built for the tag
+(`vX.Y.Z-rc.N`, a draft pre-release on GitHub), not a local build, so the
+release workflow is tested too (item 13). Record the results at the bottom,
+and attach the filled-in table to the changelog pull request for the
+release.
 
 Never run this against pubnet validators. Testnet is reset periodically, so
 the seeds generated here protect nothing.
@@ -38,13 +39,30 @@ the seeds generated here protect nothing.
     ProxyJump <bastion>
   ```
 
+- Download the release candidate's archive for your laptop, check it and
+  unpack it (item 13 records the result). A draft is visible only to
+  maintainers, so download it with `gh`:
+
+  ```sh
+  mkdir rc && cd rc
+  gh release download vX.Y.Z-rc.N --repo owenjacob-dev/auriga
+  cosign verify-blob --bundle checksums.txt.sigstore.json \
+    --certificate-identity 'https://github.com/owenjacob-dev/auriga/.github/workflows/ci.yml@refs/tags/vX.Y.Z-rc.N' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    checksums.txt
+  sha256sum -c checksums.txt          # macOS: shasum -a 256 -c checksums.txt
+  tar xzf auriga_*_linux_amd64.tar.gz   # or darwin_arm64, etc.
+  ./auriga --version                  # auriga vX.Y.Z-rc.N (go…, os/arch)
+  ```
+
 - Start with an empty state: `export XDG_CONFIG_HOME=$(mktemp -d)
   XDG_STATE_HOME=$(mktemp -d)`. Then run `auriga --debug`, so the debug log
   is covered by the seed search too.
 
 ## Checklist
 
-Each item matches a line of SPEC.md "Acceptance checklist for v0.1.0".
+Items 1 to 12 match the lines of SPEC.md "Acceptance checklist for
+v1.0.0". Item 13 checks the release workflow.
 
 1. **Three hosts at once, one behind ProxyJump, with agent keys.** Press `a`,
    select `acc-a`, `acc-b` and `acc-c`, and press enter. All three reach
@@ -128,6 +146,19 @@ Each item matches a line of SPEC.md "Acceptance checklist for v0.1.0".
     there is no colour anywhere, and every status still reads as a symbol
     and a word.
 
+13. **The release candidate's artefacts.** On the draft release for the
+    tag:
+    - It is marked as a pre-release, and its notes are the `[Unreleased]`
+      section of `CHANGELOG.md`.
+    - It has four archives (linux and darwin, amd64 and arm64), an
+      `.sbom.spdx.json` next to each, `checksums.txt` and
+      `checksums.txt.sigstore.json`.
+    - The cosign and `sha256sum` checks in Setup pass, and the certificate
+      names the tag's run of `ci.yml`.
+    - `auriga --version` prints the tag.
+    - The CI run for the tag shows lint, tests, fuzzing and the integration
+      suite passing before the Release job started.
+
 ## Results
 
 | # | Item | Result | Notes |
@@ -144,5 +175,6 @@ Each item matches a line of SPEC.md "Acceptance checklist for v0.1.0".
 | 10 | Unsupported protocol blocked | | |
 | 11 | Intersection banner | | |
 | 12 | 80×24 and NO_COLOR | | |
+| 13 | Release candidate artefacts | | |
 
 Binary version: ______  stellar-core version: ______  Date: ______  By: ______

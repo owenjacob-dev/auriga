@@ -17,11 +17,11 @@ report, and we will agree a disclosure date with you.
 
 ## Supported versions
 
-Auriga is pre-1.0. Only the latest release receives security fixes.
+Only the latest release receives security fixes.
 
 | Version | Supported |
 | ------- | --------- |
-| latest `v0.x` | Yes |
+| latest `v1.x` | Yes |
 | older | No |
 
 ## Security model in brief
