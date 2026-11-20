@@ -108,7 +108,7 @@ make build            # static binary at bin/auriga
 | `s` | Dashboard | Setup wizard for the selected host's org |
 | `u` | Dashboard | Network upgrades |
 | `l` | Dashboard | Audit log |
-| `enter` | Dashboard | Host detail: Info, Quorum, Peers, Upgrades, Config, Probe |
+| `enter` | Dashboard | Host detail: Info, Quorum, Peers, Upgrades, Config, Probe (`←` `→` switch tabs) |
 | `r` | Dashboard, detail | Refresh now, or reconnect |
 | `p` | Dashboard | Pause or resume polling |
 | `x` | Dashboard | Remove a host from the inventory (local only) |

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -174,4 +175,61 @@ func TestReadOnlyAndPublicPortOnDashboard(t *testing.T) {
 	if !strings.Contains(out, "PUBLIC_HTTP_PORT=true: the admin endpoint is open") || !strings.Contains(out, "○ open") {
 		t.Errorf("public port not red:\n%s", out)
 	}
+}
+
+// TestDetailQuorumTabUsesWidth checks that a tiered quorum set spreads into
+// columns on wider terminals, beside the summary once there is room, and
+// that names reported by stellar-core are shown whole.
+func TestDetailQuorumTabUsesWidth(t *testing.T) {
+	for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 30}, {Width: 120, Height: 30}, {Width: 200, Height: 30}} {
+		t.Run(fmt.Sprintf("%dx%d", size.Width, size.Height), func(t *testing.T) {
+			b := newFakeBackend(testInventory("acme-a", "acme-b"))
+			b.facts["acme-a"], b.facts["acme-b"] = healthyFacts, healthyFacts
+			b.admin["acme-a"] = map[string][]byte{
+				"info":   coreFixture(t, "synthetic/info-pubnet-synced.json"),
+				"quorum": coreFixture(t, "synthetic/quorum-tiered-named.json"),
+			}
+			m := startModel(t, b)
+			m = step(t, m, size)
+			m = step(t, m, connected("acme-a"))
+			m = step(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+			m = step(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+			out := ansi.Strip(m.Render())
+			for _, want := range []string{"[Quorum]", "Quorum set  4 of 5", "epsilon-backup-1", "fail_with     beta-1, gamma-1"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("lacks %q", want)
+				}
+			}
+			golden.RequireEqual(t, out)
+		})
+	}
+}
+
+func TestDetailLeftRightSwitchTabs(t *testing.T) {
+	m, _ := detailModel(t)
+	for _, k := range []struct {
+		code rune
+		want string
+	}{{tea.KeyRight, "[Quorum]"}, {tea.KeyRight, "[Peers]"}, {tea.KeyLeft, "[Quorum]"}, {tea.KeyLeft, "[Info]"}, {tea.KeyLeft, "[Probe]"}} {
+		m = step(t, m, tea.KeyPressMsg{Code: k.code})
+		if out := ansi.Strip(m.Render()); !strings.Contains(out, k.want) {
+			t.Fatalf("after %v want %s:\n%s", k.code, k.want, out)
+		}
+	}
+}
+
+// TestDetailPeersTabWide checks that peers show whole keys when the table
+// fits the terminal.
+func TestDetailPeersTabWide(t *testing.T) {
+	m, _ := detailModel(t)
+	m = step(t, m, tea.WindowSizeMsg{Width: 140, Height: 24})
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	m = step(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	out := ansi.Strip(m.Render())
+	for _, want := range []string{"acme-b (GAB2CB576PHBBPQ5ODORRZ2LYCMWPZGWGCN2KDK7DXOIMZASKUY3QZ6Q)", "GDVEU3DD4KOFECV66VIHWEZOYX4ZKR3WV27L464SIIPOU2IUI3JCZA57"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("lacks %q", want)
+		}
+	}
+	golden.RequireEqual(t, out)
 }

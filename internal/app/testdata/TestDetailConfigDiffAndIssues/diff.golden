@@ -21,4 +21,4 @@
 │ · 1 other setting is kept unchanged: CATCHUP_RECENT                          │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · ssh connected · ssh tunnel                                          │
-└ tab next  r refresh  d diff  R restore a backup  esc back  ? help  q quit ───┘
+└ ←→ tabs  r refresh  d diff  R restore a backup  esc back  ? help  q quit ────┘
