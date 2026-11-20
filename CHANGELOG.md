@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Wider terminals are used: the Quorum tab lays out the quorum set in
+  columns, one block per inner set, beside the summary once there is room;
+  the Peers tab shows whole node keys when they fit; and the dashboard's
+  HOST column grows to fit long aliases. `←` and `→` switch host detail
+  tabs. Node names reported by stellar-core are no longer abbreviated.
 - Release builds for Linux and macOS (amd64 and arm64), reproducible, with
   SHA-256 checksums, an SPDX SBOM per archive and a Sigstore keyless
   signature, published as a draft only after the full test suite passes on
