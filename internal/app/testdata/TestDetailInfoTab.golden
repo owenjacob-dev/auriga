@@ -9,7 +9,6 @@
 │ {                                                                            │
 │   "info": {                                                                  │
 │     "build": "stellar-core 30.0.0 (synthetic)",                              │
-│     "history_failure_rate": "0",                                             │
 │     "ledger": {                                                              │
 │       "age": 3,                                                              │
 │       "baseFee": 100,                                                        │
@@ -19,6 +18,7 @@
 │       "maxTxSetSize": 1000,                                                  │
 │       "maxSorobanTxSetSize": 100,                                            │
 │       "num": 61234567,                                                       │
+│       "version": 29                                                          │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · ssh connected · ssh tunnel · last info 0s ago                       │
 └ tab next  r refresh  c copy  esc back  ? help  q quit ───────────────────────┘
