@@ -23,9 +23,14 @@ var wizardSeeds = map[string]string{
 	"acme-c": "SADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP54X",
 }
 
+// keys presses each key in turn. Before each press it delivers any late
+// command results that have arrived, as the real program would: a form's
+// focus change, for example, is a command, and on a loaded machine it can
+// take longer than cmdWait.
 func keys(t *testing.T, m Model, ks ...string) Model {
 	t.Helper()
 	for _, k := range ks {
+		m = settle(t, m)
 		var msg tea.KeyPressMsg
 		switch k {
 		case "enter":
@@ -42,7 +47,7 @@ func keys(t *testing.T, m Model, ks ...string) Model {
 			msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 		default:
 			for _, r := range k {
-				m = step(t, m, tea.KeyPressMsg{Code: r, Text: string(r)})
+				m = step(t, settle(t, m), tea.KeyPressMsg{Code: r, Text: string(r)})
 			}
 			continue
 		}
