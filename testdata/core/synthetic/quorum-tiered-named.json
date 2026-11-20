@@ -1,0 +1,38 @@
+{
+  "node": "acme-a",
+  "qset": {
+    "agree": ["acme-a", "acme-b", "acme-c", "beta-1", "beta-2", "beta-3", "gamma-1", "gamma-2", "gamma-3", "delta-1", "delta-3", "epsilon-1"],
+    "delayed": null,
+    "disagree": null,
+    "fail_at": 2,
+    "fail_with": ["beta-1", "gamma-1"],
+    "hash": "5e7a19",
+    "ledger": 61234567,
+    "missing": ["delta-2"],
+    "phase": "EXTERNALIZE",
+    "validated": true,
+    "value": {
+      "t": 4,
+      "v": [
+        { "t": 2, "v": ["acme-a", "acme-b", "acme-c"] },
+        { "t": 2, "v": ["beta-1", "beta-2", "beta-3"] },
+        { "t": 2, "v": ["gamma-1", "gamma-2", "gamma-3"] },
+        { "t": 2, "v": ["delta-1", "delta-2", "delta-3"] },
+        {
+          "t": 2,
+          "v": [
+            "epsilon-1",
+            "GDVEU3DD4KOFECV66VIHWEZOYX4ZKR3WV27L464SIIPOU2IUI3JCZA57",
+            { "t": 1, "v": ["epsilon-backup-1", "epsilon-backup-2"] }
+          ]
+        }
+      ]
+    }
+  },
+  "transitive": {
+    "critical": null,
+    "intersection": true,
+    "last_check_ledger": 61234500,
+    "node_count": 17
+  }
+}

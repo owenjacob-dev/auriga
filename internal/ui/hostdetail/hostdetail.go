@@ -12,6 +12,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/owenjacob-dev/auriga/internal/corehttp"
 	"github.com/owenjacob-dev/auriga/internal/sshx"
@@ -81,8 +82,10 @@ func (m *Model) Init() tea.Cmd { return m.fetchFor(m.tab, false) }
 func (m *Model) Busy() string { return "" }
 
 var (
-	kTab        = key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next"))
-	kPrev       = key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "previous tab"))
+	// ← and → switch tabs; tab and shift+tab still work but are not shown.
+	kTab        = key.NewBinding(key.WithKeys("right", "left", "tab", "shift+tab"), key.WithHelp("←→", "tabs"))
+	kNext       = key.NewBinding(key.WithKeys("right", "tab"), key.WithHelp("→", "next tab"))
+	kPrev       = key.NewBinding(key.WithKeys("left", "shift+tab"), key.WithHelp("←", "previous tab"))
 	kRefresh    = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh"))
 	kCopy       = key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy"))
 	kTransitive = key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "transitive"))
@@ -116,7 +119,7 @@ func (m *Model) FullHelp() []key.Binding {
 		return key.NewBinding(key.WithKeys(b.Keys()...), key.WithHelp(b.Help().Key, desc))
 	}
 	return []key.Binding{
-		long(kTab, "Next tab"), long(kPrev, "Previous tab"), long(kScroll, "Scroll"),
+		long(kNext, "Next tab"), long(kPrev, "Previous tab"), long(kScroll, "Scroll"),
 		long(kRefresh, "Fetch this tab again (and poll and probe the host)"),
 		long(kTransitive, "Quorum tab: run the network-wide intersection check"),
 		long(kCopy, "Copy this tab's raw JSON to the clipboard (OSC 52)"),
@@ -192,10 +195,10 @@ func (m *Model) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return m, ui.Emit(ui.CloseMsg{})
-		case "tab":
+		case "right", "tab":
 			m.tab = (m.tab + 1) % numTabs
 			return m, m.fetchFor(m.tab, false)
-		case "shift+tab":
+		case "left", "shift+tab":
 			m.tab = (m.tab + numTabs - 1) % numTabs
 			return m, m.fetchFor(m.tab, false)
 		case "r":
@@ -399,11 +402,33 @@ func (m *Model) names() map[string]string {
 	return n
 }
 
+// nodeLabel names a node: an inventory host's alias with its abbreviated
+// key, or the abbreviated key. stellar-core reports nodes by the names in its
+// config when it has them; those are shown whole.
 func (m *Model) nodeLabel(id string) string {
 	if a, ok := m.names()[id]; ok {
 		return a + " (" + strkey.Abbrev(id) + ")"
 	}
+	if !strkey.ValidPublicKey(id) {
+		return id
+	}
 	return strkey.Abbrev(id)
+}
+
+// nodeLabelFull is nodeLabel with the whole key, for where there is room.
+func (m *Model) nodeLabelFull(id string) string {
+	if a, ok := m.names()[id]; ok {
+		return a + " (" + id + ")"
+	}
+	return id
+}
+
+func sum(xs []int) int {
+	n := 0
+	for _, x := range xs {
+		n += x
+	}
+	return n
 }
 
 func (m *Model) quorumTab(t theme.Theme, ctx ui.Context) []string {
@@ -452,9 +477,106 @@ func (m *Model) quorumTab(t theme.Theme, ctx ui.Context) []string {
 	}
 	out = append(out, "", t.Header.Render("Transitive"))
 	out = append(out, m.transitiveLines(t, q.Transitive)...)
-	if qs.Value != nil {
-		out = append(out, "", t.Header.Render("Quorum set"))
-		out = append(out, m.qsetLines(qs.Value, "  ")...)
+	if qs.Value == nil {
+		return out
+	}
+	return m.withQSet(t, out, qs.Value, ctx.Cols)
+}
+
+const (
+	// qsetGap separates the summary from the quorum set, and the quorum
+	// set's columns from each other.
+	qsetGap = 3
+	// summaryMaxCols caps the summary column when the quorum set sits
+	// beside it; longer summary lines are cut off.
+	summaryMaxCols = 72
+)
+
+// withQSet lays out the quorum set after the summary. The set is split into
+// blocks (the top-level validators, then one block per inner set, which is
+// usually one organisation) that wrap into as many columns as the width
+// allows. When the width leaves room for at least one block beside the
+// summary, the set goes on the right instead of below it.
+func (m *Model) withQSet(t theme.Theme, summary []string, v *corehttp.QSetValue, width int) []string {
+	blocks := m.qsetBlocks(t, v)
+	blockW := 0
+	for _, b := range blocks {
+		for _, l := range b {
+			blockW = max(blockW, lipgloss.Width(l))
+		}
+	}
+	head := t.Header.Render("Quorum set") + fmt.Sprintf("  %d of %d", v.Threshold, len(v.Nodes)+len(v.Inner))
+
+	leftW := 0
+	for _, l := range summary {
+		leftW = max(leftW, lipgloss.Width(l))
+	}
+	leftW = min(leftW, summaryMaxCols)
+	if rightW := width - leftW - qsetGap; rightW >= blockW {
+		right := append([]string{head}, qsetGrid(blocks, rightW, blockW)...)
+		sep := t.Muted.Render(components.Fit(" │", qsetGap))
+		var out []string
+		for i := range max(len(summary), len(right)) {
+			var l, r string
+			if i < len(summary) {
+				l = summary[i]
+			}
+			if i < len(right) {
+				r = right[i]
+			}
+			out = append(out, components.Fit(l, leftW)+sep+r)
+		}
+		return out
+	}
+	out := append(summary, "", head)
+	return append(out, qsetGrid(blocks, width, blockW)...)
+}
+
+// qsetBlocks splits a quorum set into the blocks withQSet arranges.
+func (m *Model) qsetBlocks(t theme.Theme, v *corehttp.QSetValue) [][]string {
+	var blocks [][]string
+	if len(v.Nodes) > 0 {
+		b := []string{t.Muted.Render("Validators")}
+		for _, id := range v.Nodes {
+			b = append(b, "  "+m.nodeLabel(id))
+		}
+		blocks = append(blocks, b)
+	}
+	for _, inner := range v.Inner {
+		blocks = append(blocks, m.qsetLines(inner, ""))
+	}
+	return blocks
+}
+
+// qsetGrid places blocks left to right in columns of blockW, as many as fit
+// in width, starting a new row of blocks when a row is full.
+func qsetGrid(blocks [][]string, width, blockW int) []string {
+	colW := blockW + qsetGap
+	perRow := max(1, (width+qsetGap)/colW)
+	var out []string
+	for i := 0; i < len(blocks); i += perRow {
+		row := blocks[i:min(i+perRow, len(blocks))]
+		height := 0
+		for _, b := range row {
+			height = max(height, len(b))
+		}
+		if i > 0 {
+			out = append(out, "")
+		}
+		for y := range height {
+			var line string
+			for j, b := range row {
+				var cell string
+				if y < len(b) {
+					cell = b[y]
+				}
+				if j < len(row)-1 {
+					cell = components.Fit(cell, colW)
+				}
+				line += cell
+			}
+			out = append(out, line)
+		}
 	}
 	return out
 }
@@ -538,35 +660,68 @@ func (m *Model) peersTab(t theme.Theme, ctx ui.Context) []string {
 	if p == nil {
 		return []string{t.Muted.Render("No peers.")}
 	}
-	widths := []int{4, 22, 22, 9, 8, 8}
-	row := func(cells ...string) string {
-		var s string
-		for i, c := range cells {
-			s += components.Fit(c, widths[i])
-		}
-		return s
+	// Rows are built twice, with full and abbreviated node keys; the full
+	// form is used when the whole table fits the width. Columns grow to fit
+	// their content, from the minimum widths below.
+	type peerRow struct {
+		dir, id, addr, lat, ver, up string
 	}
-	out := []string{t.Header.Render(row("DIR", "NODE", "ADDRESS", "LATENCY", "VERSION", "UP"))}
+	var rows []peerRow
 	add := func(dir string, peers []corehttp.Peer, pending bool) {
 		sort.Slice(peers, func(i, j int) bool { return peers[i].Latency < peers[j].Latency })
 		for _, pr := range peers {
-			lat, up, node, ver := fmt.Sprintf("%dms", pr.Latency), fmt.Sprintf("%dm", pr.Elapsed/60), m.nodeLabel(pr.ID), ui.CoreVersion(pr.Version)
+			r := peerRow{dir, pr.ID, pr.Address, fmt.Sprintf("%dms", pr.Latency), ui.CoreVersion(pr.Version), fmt.Sprintf("%dm", pr.Elapsed/60)}
 			if pending {
-				lat, up = "pending", "—"
+				r.lat, r.up = "pending", "—"
 			}
-			if pr.ID == "" {
-				node = "—"
+			if r.ver == "" {
+				r.ver = "—"
 			}
-			if ver == "" {
-				ver = "—"
-			}
-			out = append(out, row(dir, node, pr.Address, lat, ver, up))
+			rows = append(rows, r)
 		}
 	}
 	add("in", p.Authenticated.Inbound, false)
 	add("out", p.Authenticated.Outbound, false)
 	add("in", p.Pending.Inbound, true)
 	add("out", p.Pending.Outbound, true)
+
+	header := []string{"DIR", "NODE", "ADDRESS", "LATENCY", "VERSION", "UP"}
+	table := func(full bool) ([][]string, []int) {
+		cells := [][]string{header}
+		for _, r := range rows {
+			node := "—"
+			switch {
+			case r.id == "":
+			case full:
+				node = m.nodeLabelFull(r.id)
+			default:
+				node = m.nodeLabel(r.id)
+			}
+			cells = append(cells, []string{r.dir, node, r.addr, r.lat, r.ver, r.up})
+		}
+		widths := []int{4, 22, 22, 9, 8, 8}
+		for _, c := range cells {
+			for i, v := range c {
+				widths[i] = max(widths[i], lipgloss.Width(v)+1)
+			}
+		}
+		return cells, widths
+	}
+	cells, widths := table(true)
+	if sum(widths) > ctx.Cols {
+		cells, widths = table(false)
+	}
+	var out []string
+	for i, c := range cells {
+		var line string
+		for j, v := range c {
+			line += components.Fit(v, widths[j])
+		}
+		if i == 0 {
+			line = t.Header.Render(line)
+		}
+		out = append(out, line)
+	}
 	total := len(p.Authenticated.Inbound) + len(p.Authenticated.Outbound)
 	out = append(out, "", t.Muted.Render(fmt.Sprintf("%d authenticated (%d in, %d out), %d pending", total,
 		len(p.Authenticated.Inbound), len(p.Authenticated.Outbound), len(p.Pending.Inbound)+len(p.Pending.Outbound))))
