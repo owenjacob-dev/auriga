@@ -138,7 +138,7 @@ func poll(t *testing.T, m Model) Model {
 	for _, h := range []string{"acme-a", "acme-b", "acme-c"} {
 		m = step(t, m, pollTickMsg{h, m.pollGen[h]})
 	}
-	return m
+	return quiesce(t, m)
 }
 
 func TestArmBasefeeConfirmApplyAndRearm(t *testing.T) {
@@ -179,10 +179,8 @@ func TestArmBasefeeConfirmApplyAndRearm(t *testing.T) {
 	}
 	t.Run("review", func(t *testing.T) { golden.RequireEqual(t, out) })
 	m = keys(t, m, "enter")
+	waitUntil(t, m, "three hosts armed and confirmed", func(s string) bool { return strings.Count(s, "armed and confirmed") == 3 })
 	out = screen(m)
-	if strings.Count(out, "armed and confirmed") != 3 {
-		t.Fatalf("results:\n%s", out)
-	}
 	t.Run("results", func(t *testing.T) { golden.RequireEqual(t, out) })
 	for h, c := range b.cores {
 		if c.armed.Get("basefee") != "200" || c.armed.Get("upgradetime") != "2026-11-16T17:00:00Z" {
@@ -230,6 +228,7 @@ func TestArmBasefeeConfirmApplyAndRearm(t *testing.T) {
 		t.Fatalf("re-arm review:\n%s", out)
 	}
 	m = keys(t, m, "enter")
+	m = waitFor(t, m, "armed and confirmed")
 	if b.cores["acme-c"].armed.Get("basefee") != "200" || m.fleet.Host("acme-c").ArmLost != nil {
 		t.Error("acme-c not re-armed")
 	}
@@ -251,9 +250,7 @@ func TestClearUpgradesAndPubnetConfirmation(t *testing.T) {
 		t.Fatalf("clear confirmation:\n%s", out)
 	}
 	m = keys(t, m, "enter")
-	if out := screen(m); strings.Count(out, "cleared") != 2 {
-		t.Fatalf("clear results:\n%s", out)
-	}
+	waitUntil(t, m, "two hosts cleared", func(s string) bool { return strings.Count(s, "cleared") == 2 })
 	if b.cores["acme-a"].armed != nil || b.cores["acme-b"].armed != nil {
 		t.Error("not cleared")
 	}
@@ -266,7 +263,7 @@ func TestClearUpgradesAndPubnetConfirmation(t *testing.T) {
 func enterUntil(t *testing.T, m Model, text string) Model {
 	t.Helper()
 	for range 20 {
-		if strings.Contains(screen(m), text) {
+		if m = settle(t, m); strings.Contains(screen(m), text) {
 			return m
 		}
 		m = keys(t, m, "enter")
@@ -298,6 +295,7 @@ func TestInspectorAndPubnetKeyArming(t *testing.T) {
 		c.proposals[proposalKey] = `{"updatedEntry":[{"configSettingID":"CONFIG_SETTING_CONTRACT_MAX_SIZE_BYTES","contractMaxSizeBytes":65536}]}`
 	}
 	m = keys(t, m, "u", "i", proposalKey, "enter", "enter")
+	m = waitFor(t, m, "would change")
 	out := screen(m)
 	if !strings.Contains(out, "1 value(s) would change") || !strings.Contains(out, "contractMaxSizeBytes: 2000 → 65536") {
 		t.Fatalf("inspector:\n%s", out)
@@ -328,9 +326,7 @@ func TestInspectorAndPubnetKeyArming(t *testing.T) {
 		t.Fatal("sent with a wrong confirmation")
 	}
 	m = keys(t, m, "t", "enter")
-	if out := screen(m); strings.Count(out, "armed and confirmed") != 3 {
-		t.Errorf("results:\n%s", out)
-	}
+	waitUntil(t, m, "three hosts armed and confirmed", func(s string) bool { return strings.Count(s, "armed and confirmed") == 3 })
 	for h, c := range b.cores {
 		if c.armed.Get("configupgradesetkey") != proposalKey {
 			t.Errorf("%s armed with %v", h, c.armed)
