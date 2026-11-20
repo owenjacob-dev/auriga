@@ -16,9 +16,9 @@
 │ Critical                                                                     │
 │     acme-b (GAB2…QZ6Q)                                                       │
 │                                                                              │
-│ Quorum set                                                                   │
-│   2 of 2                                                                     │
-│     acme-a (GBRP…OX2H)                                                       │
+│ Quorum set  2 of 2                                                           │
+│ Validators             1 of 2                                                │
+│   acme-a (GBRP…OX2H)     acme-b (GAB2…QZ6Q)                                  │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ acme-a · ssh connected · ssh tunnel · fetched 0s ago                         │
-└ tab next  r refresh  t transitive  c copy  esc back  ? help  q quit ─────────┘
+└ ←→ tabs  r refresh  t transitive  c copy  esc back  ? help  q quit ──────────┘
