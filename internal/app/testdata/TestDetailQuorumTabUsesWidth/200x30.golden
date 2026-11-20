@@ -1,0 +1,30 @@
+┌ auriga · acme-a ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 14:02:11 UTC ┐
+│ ● synced  acme-a   Info [Quorum] Peers  Upgrades  Config  Probe                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│ Ledger        61234567  phase EXTERNALIZE                            │ Quorum set  4 of 5                                                                                                            │
+│ Agree         12                                                     │ 2 of 3                 2 of 3                 2 of 3                 2 of 3                 2 of 3                            │
+│ fail_at       2  (nodes that can fail before this node loses quorum) │   acme-a                 beta-1                 gamma-1                delta-1                epsilon-1                       │
+│ fail_with     beta-1, gamma-1                                        │   acme-b                 beta-2                 gamma-2                delta-2                GDVE…ZA57                       │
+│ Missing       1                                                      │   acme-c                 beta-3                 gamma-3                delta-3                1 of 2                          │
+│     delta-2                                                          │                                                                                                 epsilon-backup-1              │
+│ Disagree      none                                                   │                                                                                                 epsilon-backup-2              │
+│ Delayed       none                                                   │                                                                                                                               │
+│                                                                      │                                                                                                                               │
+│ Transitive                                                           │                                                                                                                               │
+│ Intersection  ● yes                                                  │                                                                                                                               │
+│ Nodes         17  (checked at ledger 61234500)                       │                                                                                                                               │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+│                                                                                                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ acme-a · ssh connected · ssh tunnel · fetched 0s ago                                                                                                                                                 │
+└ ←→ tabs  r refresh  t transitive  c copy  esc back  ? help  q quit ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

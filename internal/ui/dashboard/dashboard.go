@@ -31,10 +31,37 @@ type column struct {
 
 // columns follow SPEC.md's sketch; BUILD and UP SINCE appear on wide
 // terminals (the Info tab always shows them).
+// colHost is the HOST column's index in columns.
+const colHost = 1
+
 var columns = []column{
 	{"", 2, false}, {"HOST", 12, false}, {"STATE", 14, false}, {"LEDGER", 10, false},
 	{"AGE", 5, false}, {"PEERS", 6, false}, {"QUORUM", 9, false}, {"INT", 4, false},
 	{"PROTO", 6, false}, {"UPGRADE", 8, false}, {"BUILD", 10, true}, {"UP SINCE", 13, true},
+}
+
+// columnWidths returns each column's width. The HOST column grows past its
+// minimum to fit the longest alias, as far as the terminal's spare width
+// allows.
+func columnWidths(cols []int, width int, f *ui.Fleet) []int {
+	widths := make([]int, len(columns))
+	used := 0
+	for i, c := range columns {
+		widths[i] = c.width
+	}
+	for _, i := range cols {
+		used += widths[i]
+	}
+	if f != nil {
+		longest := 0
+		for _, h := range f.Hosts {
+			longest = max(longest, lipgloss.Width(h.Alias)+1)
+		}
+		if grow := min(longest-widths[colHost], width-used); grow > 0 {
+			widths[colHost] += grow
+		}
+	}
+	return widths
 }
 
 func visibleColumns(width int) []int {
@@ -223,9 +250,10 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 	}
 	t := ctx.Theme
 	cols := visibleColumns(ctx.Cols)
+	widths := columnWidths(cols, ctx.Cols, ctx.Fleet)
 	var header string
 	for _, i := range cols {
-		header += components.Fit(columns[i].title, columns[i].width)
+		header += components.Fit(columns[i].title, widths[i])
 	}
 	if ctx.Fleet == nil || len(ctx.Fleet.Hosts) == 0 {
 		body := []string{t.Header.Render(header), "", t.Muted.Render("No hosts yet. Press a to add hosts from ~/.ssh/config.")}
@@ -244,7 +272,7 @@ func (m *Model) View(ctx ui.Context) ui.Layout {
 	body = append(body, t.Header.Render(header))
 	sel := m.index()
 	for i, h := range ctx.Fleet.Hosts {
-		body = append(body, m.row(t, h, rows[h.Alias], cols, i == sel))
+		body = append(body, m.row(t, h, rows[h.Alias], cols, widths, i == sel))
 	}
 	if m.confirmRemove != "" {
 		body = append(body, "", t.Warn.Render(fmt.Sprintf("Remove %s from the inventory? Nothing on the host changes.", m.confirmRemove)))
@@ -399,7 +427,7 @@ func Warnings(h *ui.HostView) []string {
 	return w
 }
 
-func (m *Model) row(t theme.Theme, h *ui.HostView, r health.Row, cols []int, selected bool) string {
+func (m *Model) row(t theme.Theme, h *ui.HostView, r health.Row, cols, widths []int, selected bool) string {
 	st := Health(h, r)
 	state := r.State
 	if h.Conn.State != sshx.StateConnected {
@@ -420,7 +448,7 @@ func (m *Model) row(t theme.Theme, h *ui.HostView, r health.Row, cols []int, sel
 	var out string
 	for _, i := range cols {
 		c := cells[i]
-		text := components.Fit(c.Text, columns[i].width)
+		text := components.Fit(c.Text, widths[i])
 		if selected {
 			out += text
 			continue

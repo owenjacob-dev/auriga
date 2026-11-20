@@ -535,7 +535,8 @@ Dashboard sketch (illustrative values):
 | `q`, `ctrl+c`      | Anywhere          | Quit; asks first if a deploy or arming is running |
 | `esc`              | Anywhere          | Back or close modal                               |
 | `↑` `↓`, `j` `k`   | Lists             | Move                                              |
-| `tab`, `shift+tab` | Detail, wizard    | Next or previous tab or field                     |
+| `←` `→`            | Detail            | Previous or next tab (`tab`, `shift+tab` too)     |
+| `tab`, `shift+tab` | Wizard            | Next or previous field or host                    |
 | `enter`            | Lists             | Open                                              |
 | `/`                | Lists             | Filter                                            |
 | `a`                | Dashboard         | Add hosts                                         |
