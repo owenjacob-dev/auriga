@@ -23,7 +23,6 @@ type Info struct {
 	Peers           PeerCounts `json:"peers"`
 	Quorum          InfoQuorum `json:"quorum"`
 	Status          []string   `json:"status"`
-	HistoryFailures string     `json:"history_failure_rate"`
 }
 
 // LedgerInfo is info.ledger.
@@ -235,6 +234,18 @@ type Peer struct {
 	Latency int64  `json:"latency"` // milliseconds
 	Elapsed int64  `json:"elapsed"` // seconds connected
 	OLVer   int    `json:"olver"`
+}
+
+// UnmarshalJSON accepts a peer object, or a bare address string: stellar-core
+// lists pending peers by address only (CommandHandler::peers writes
+// peer->toString(), which is the peer's address, in 30.0.0).
+func (p *Peer) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '"' {
+		*p = Peer{}
+		return json.Unmarshal(b, &p.Address)
+	}
+	type plain Peer
+	return json.Unmarshal(b, (*plain)(p))
 }
 
 // UpgradesResponse is the body of `upgrades?mode=get`: the scheduled
