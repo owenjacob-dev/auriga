@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -239,8 +240,82 @@ func checkFrame(t *testing.T, m Model) {
 }
 
 // cmdWait is how long run waits for a command before treating it as a
-// timer or the pool listener and dropping it.
+// timer or the pool listener and moving on. A slow command that does
+// return later is not lost: its result waits in late for waitFor.
 var cmdWait = 100 * time.Millisecond
+
+// late holds the results of commands run stopped waiting for. startModel
+// clears it, so one test never receives another's messages.
+var late []chan tea.Msg
+
+// waitFor delivers late command results to m until text is on screen, for
+// work that can take longer than cmdWait on a loaded machine (the race
+// detector on a shared CI runner).
+func waitFor(t *testing.T, m Model, text string) Model {
+	t.Helper()
+	return waitUntil(t, m, fmt.Sprintf("%q on screen", text), func(s string) bool { return strings.Contains(s, text) })
+}
+
+// waitUntil delivers late command results to m until ok holds for the
+// screen, failing after 10 s.
+func waitUntil(t *testing.T, m Model, what string, ok func(screen string) bool) Model {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !ok(screen(m)) {
+		if time.Now().After(deadline) {
+			t.Fatalf("never got %s:\n%s", what, screen(m))
+		}
+		var got bool
+		if m, got = deliverLate(t, m); !got {
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	return m
+}
+
+// quiesce delivers late command results until none has arrived for 250 ms,
+// so a chain of I/O (a poll, then the arm check it starts, then the
+// overview fetch that starts) finishes before the test reads the screen.
+// The timers in these tests (polling, the cursor blink) are longer than
+// that, so they stay pending.
+func quiesce(t *testing.T, m Model) Model {
+	t.Helper()
+	const quietFor = 250 * time.Millisecond
+	deadline := time.Now().Add(10 * time.Second)
+	last := time.Now()
+	for time.Since(last) < quietFor && time.Now().Before(deadline) {
+		var got bool
+		if m, got = deliverLate(t, m); got {
+			last = time.Now()
+		} else {
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	return m
+}
+
+// settle applies every late command result that has already arrived.
+func settle(t *testing.T, m Model) Model {
+	t.Helper()
+	for got := true; got; {
+		m, got = deliverLate(t, m)
+	}
+	return m
+}
+
+// deliverLate applies one late command result that has arrived, if any.
+func deliverLate(t *testing.T, m Model) (Model, bool) {
+	t.Helper()
+	for i, ch := range late {
+		select {
+		case msg := <-ch:
+			late = append(late[:i], late[i+1:]...)
+			return deliver(t, m, msg), true
+		default:
+		}
+	}
+	return m, false
+}
 
 func run(t *testing.T, m Model, cmd tea.Cmd) Model {
 	t.Helper()
@@ -253,8 +328,15 @@ func run(t *testing.T, m Model, cmd tea.Cmd) Model {
 	select {
 	case msg = <-done:
 	case <-time.After(cmdWait):
-		return m // a blocking listener or a timer
+		late = append(late, done) // a timer, a listener, or slow work
+		return m
 	}
+	return deliver(t, m, msg)
+}
+
+// deliver applies a command's result to m.
+func deliver(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
 	switch msg := msg.(type) {
 	case nil:
 		return m
@@ -280,6 +362,7 @@ func testInventory(aliases ...string) *inventory.Inventory {
 
 func startModel(t *testing.T, b *fakeBackend) Model {
 	t.Helper()
+	late = nil
 	m := New(Options{Now: fixedNow, DisableClock: true, Backend: b, NoColor: true})
 	m = run(t, m, m.Init())
 	return step(t, m, size80x24)
