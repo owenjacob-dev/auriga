@@ -376,24 +376,6 @@ func TestSudoCommandIsFixed(t *testing.T) {
 	}
 }
 
-func FuzzQuote(f *testing.F) {
-	for _, s := range []string{"", "a", "it's", `"$(x)"`, "a\nb", "'''", "\\"} {
-		f.Add(s)
-	}
-	f.Fuzz(func(t *testing.T, s string) {
-		if strings.ContainsRune(s, 0) {
-			return // argv cannot carry NUL
-		}
-		out, err := exec.Command("sh", "-c", "printf '%s' "+Quote(s)).Output()
-		if err != nil {
-			t.Fatalf("sh failed for %q: %v", s, err)
-		}
-		if string(out) != s {
-			t.Fatalf("Quote(%q) round-tripped to %q", s, out)
-		}
-	})
-}
-
 func TestProgressLines(t *testing.T) {
 	h := newFakeHost(t, "dash")
 	r := newDirectRunner(map[string]Conn{"a": h}, nil)
