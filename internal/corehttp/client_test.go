@@ -138,7 +138,7 @@ func TestErrors(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 	_, _, err = New(&canned{bodies: map[string][]byte{"/peers": []byte("not json")}}).Peers(context.Background())
-	if !errors.As(err, &e) || !strings.Contains(err.Error(), "decode") {
+	if !errors.As(err, &e) || !strings.Contains(err.Error(), "decode") || !strings.Contains(err.Error(), "unexpected response") || strings.Contains(err.Error(), "check the service is running") {
 		t.Errorf("bad JSON: %v", err)
 	}
 	_, err = New(&canned{err: io.ErrUnexpectedEOF}).Raw(context.Background(), CmdPeers())

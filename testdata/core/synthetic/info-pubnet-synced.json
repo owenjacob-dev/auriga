@@ -1,7 +1,6 @@
 {
   "info": {
     "build": "stellar-core 30.0.0 (synthetic)",
-    "history_failure_rate": "0",
     "ledger": {
       "age": 3,
       "baseFee": 100,

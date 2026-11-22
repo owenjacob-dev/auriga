@@ -144,6 +144,9 @@ type Error struct {
 
 func (e *Error) Error() string {
 	switch {
+	case e.Err != nil && e.Status == http.StatusOK:
+		// The node answered, but not in a format Auriga understands.
+		return fmt.Sprintf("admin %s: unexpected response: %v; please report this with the stellar-core version", e.Command, e.Err)
 	case e.Err != nil:
 		return fmt.Sprintf("admin %s: %v; check the service is running", e.Command, e.Err)
 	default:
