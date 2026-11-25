@@ -1,0 +1,5 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Extends owenjacob-dev/terraform's shared dependency policy (D19). Kept by hand here, because Terraform would need a bypass on this repo's main ruleset to write it. Change the policy in that repo's renovate/preset.json.",
+  "extends": ["local>owenjacob-dev/terraform//renovate/preset"]
+}
